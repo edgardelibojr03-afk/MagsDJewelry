@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -8,17 +9,26 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { signIn, signInWithProvider, user } = useAuth()
+  const [isAdminTab, setIsAdminTab] = useState(false)
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-
+    const { error } = await signIn({ email, password })
     if (error) {
       setError(error.message)
     } else {
+      // optional: check for admin emails when admin tab is active
+      if (isAdminTab) {
+        const adminEmails = [
+          // add admin emails here or fetch from secure source
+          'admin@example.com'
+        ]
+        if (!adminEmails.includes(email)) {
+          setError('Not authorized as admin')
+          return
+        }
+      }
       navigate('/dashboard')
     }
   }
@@ -26,7 +36,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+        <div className="flex gap-4 mb-4">
+          <button type="button" onClick={() => setIsAdminTab(false)} className={`px-3 py-2 rounded ${!isAdminTab ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>User</button>
+          <button type="button" onClick={() => setIsAdminTab(true)} className={`px-3 py-2 rounded ${isAdminTab ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Admin</button>
+        </div>
+        <h2 className="text-2xl font-bold mb-6 text-center">{isAdminTab ? 'Admin Login' : 'Login'}</h2>
 
         <input
           type="email"
@@ -76,6 +90,10 @@ export default function Login() {
         >
           Login
         </button>
+
+        <div className="mt-3">
+          <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Continue with Google</button>
+        </div>
 
         {/* Register button */}
         <div className="text-center mt-4">

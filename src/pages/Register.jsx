@@ -1,6 +1,7 @@
 // src/components/Register.jsx
 import { useState } from 'react'
 import { supabase } from '../services/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -8,14 +9,11 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const { signUp, signInWithProvider } = useAuth()
 
   const handleRegister = async (e) => {
     e.preventDefault()
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password
-    })
-
+    const { data, error } = await signUp({ email, password })
     if (error) {
       setError(error.message)
       setSuccess(null)
@@ -78,6 +76,10 @@ export default function Register() {
         >
           Register
         </button>
+
+        <div className="mt-3">
+          <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Register with Google</button>
+        </div>
       </form>
     </div>
   )
