@@ -86,13 +86,6 @@ git push
 Vercel will automatically deploy on push to the connected branch.
 
 ---
-
-If you want, I can:
-- Add a small in-app prompt to enter the admin secret (keeps it in-memory only)
-- Add serverless endpoints for user delete/revoke so dashboard actions work securely
-- Create a short README section with recommended RBAC and admin setup for Supabase
-
-Tell me which next step you prefer.
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
