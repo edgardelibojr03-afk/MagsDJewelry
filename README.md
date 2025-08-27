@@ -1,3 +1,98 @@
+# MagsD Jewelry — Frontend (Vite + React)
+
+This repo is a Vite + React frontend wired to Supabase for auth. It includes:
+
+- Landing/Home page with image placeholders
+- Header and Footer components
+- Login / Register (email + Google) with show-password UI
+- Admin dashboard (user management) and a serverless admin endpoint for Vercel
+
+---
+
+## Quickstart (local)
+
+1. Install dependencies:
+
+```powershell
+npm install
+```
+
+2. Run the dev server:
+
+```powershell
+npm run dev
+```
+
+3. Open http://localhost:5173 (Vite default) and test pages.
+
+Notes: Tailwind is already configured; `src/index.css` contains Tailwind directives.
+
+---
+
+## Environment variables (Vercel / Production)
+
+Set these in Vercel Project > Settings > Environment Variables (or in your server environment):
+
+- `SUPABASE_URL` — your Supabase project URL (e.g. https://xyz.supabase.co)
+- `SUPABASE_SERVICE_ROLE` — Supabase service_role key (server-only, DO NOT expose to client)
+- `ADMIN_SECRET` — a random secret used to protect the serverless admin endpoint
+
+The frontend uses the anon key (`src/services/supabaseClient.js`) for normal client auth. The serverless function uses `SUPABASE_SERVICE_ROLE` to list/manage users.
+
+---
+
+## Deploying to Vercel
+
+1. Connect this GitHub repository to Vercel.
+2. Add the environment variables listed above in the Vercel project settings.
+3. Deploy — Vercel will build and publish the app. The admin endpoint will be available at:
+
+```
+https://<your-vercel-domain>/api/admin/list-users
+```
+
+Call the endpoint with header `x-admin-secret: <ADMIN_SECRET>`.
+
+---
+
+## Testing the admin endpoint locally
+
+For quick local testing (NOT for production):
+
+1. Set `ADMIN_SECRET` in your local environment or `vercel dev` environment.
+2. You can also set `window.__ADMIN_SECRET__ = '<ADMIN_SECRET>'` in the browser console for manual testing; then open `/dashboard`.
+
+Important: do not commit secrets to source control.
+
+---
+
+## Security notes
+
+- Never expose `SUPABASE_SERVICE_ROLE` in client code. Use serverless functions or a backend to perform privileged actions.
+- Protect admin endpoints with a strong secret and, ideally, server-side admin authentication.
+
+---
+
+## Pushing & CI
+
+- Repo is already connected to GitHub. To push local changes:
+
+```powershell
+git add .
+git commit -m "Describe changes"
+git push
+```
+
+Vercel will automatically deploy on push to the connected branch.
+
+---
+
+If you want, I can:
+- Add a small in-app prompt to enter the admin secret (keeps it in-memory only)
+- Add serverless endpoints for user delete/revoke so dashboard actions work securely
+- Create a short README section with recommended RBAC and admin setup for Supabase
+
+Tell me which next step you prefer.
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
