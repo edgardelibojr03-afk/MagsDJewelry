@@ -43,8 +43,8 @@ export default function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const secret = window.__ADMIN_SECRET__
-      if (!secret) return setError('Missing admin secret')
+  const secret = (adminSecret || '').trim()
+  if (!secret) return setError('Missing admin secret')
       const res = await deleteUserAdmin(secret, id)
       if (res.error) setError(res.error)
       else setUsers((u) => u.filter((x) => x.id !== id))
@@ -55,8 +55,8 @@ export default function Dashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
-  const secret = adminSecret
+  setError('')
+  const secret = (adminSecret || '').trim()
     if (!secret) return setError('Missing admin secret')
     try {
       if (form.id) {

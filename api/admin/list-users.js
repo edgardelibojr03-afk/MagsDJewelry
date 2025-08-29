@@ -5,8 +5,11 @@ export default async function handler(req, res) {
   const ADMIN_SECRET = process.env.ADMIN_SECRET
   if (!ADMIN_SECRET) return res.status(500).json({ error: 'ADMIN_SECRET not configured on server' })
 
-  const incoming = req.headers['x-admin-secret'] || req.query.admin_secret
-  if (!incoming || incoming !== ADMIN_SECRET) {
+  // Accept secret from header or query, and be lenient with surrounding spaces
+  const incomingRaw = req.headers['x-admin-secret'] || req.headers['X-Admin-Secret'] || req.query.admin_secret
+  const incoming = typeof incomingRaw === 'string' ? incomingRaw.trim() : ''
+  const serverSecret = (ADMIN_SECRET || '').trim()
+  if (!incoming || incoming !== serverSecret) {
     return res.status(401).json({ error: 'Unauthorized - missing or invalid admin secret' })
   }
 
