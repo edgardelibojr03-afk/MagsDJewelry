@@ -14,18 +14,20 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    const { error } = await signIn({ email, password })
+    const { data, error } = await signIn({ email, password })
     if (error) {
       setError(error.message)
     } else {
-      // optional: check for admin emails when admin tab is active
       if (isAdminTab) {
-        const adminEmails = [
-          // add admin emails here or fetch from secure source
-          'admin@example.com'
-        ]
-        if (!adminEmails.includes(email)) {
-          setError('Not authorized as admin')
+        const u = data?.user
+        const roles = Array.isArray(u?.app_metadata?.roles) ? u.app_metadata.roles : []
+        const isAdmin = Boolean(
+          u?.app_metadata?.is_admin ||
+          u?.user_metadata?.is_admin ||
+          roles.includes('admin')
+        )
+        if (!isAdmin) {
+          setError('Not authorized as admin. Ensure is_admin/roles set in app_metadata and re-login.')
           return
         }
       }
@@ -91,9 +93,11 @@ export default function Login() {
           Login
         </button>
 
-        <div className="mt-3">
-          <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Continue with Google</button>
-        </div>
+        {!isAdminTab && (
+          <div className="mt-3">
+            <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Continue with Google</button>
+          </div>
+        )}
 
         {/* Register button */}
         <div className="text-center mt-4">

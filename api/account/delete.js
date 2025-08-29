@@ -1,0 +1,22 @@
+import { createClient } from '@supabase/supabase-js'
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const ADMIN_SECRET = process.env.ADMIN_SECRET
+  const incoming = req.headers['x-admin-secret']
+  if (!ADMIN_SECRET || incoming !== ADMIN_SECRET) return res.status(401).json({ error: 'Unauthorized' })
+
+  const { id } = req.body || {}
+  if (!id) return res.status(400).json({ error: 'id is required' })
+
+  const SUPABASE_URL = process.env.SUPABASE_URL
+  const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
+  try {
+    const { error } = await admin.auth.admin.deleteUser(id)
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ ok: true })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
