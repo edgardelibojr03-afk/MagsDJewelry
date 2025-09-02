@@ -7,7 +7,7 @@ export default function Dashboard() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [form, setForm] = useState({ id: '', email: '', name: '', password: '' })
+  const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
   const [adminSecret, setAdminSecret] = useState('')
 
   const fetchUsers = async () => {
@@ -43,8 +43,8 @@ export default function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-  const secret = (adminSecret || '').trim()
-  if (!secret) return setError('Missing admin secret')
+      const secret = (adminSecret || '').trim()
+      if (!secret) return setError('Missing admin secret')
       const res = await deleteUserAdmin(secret, id)
       if (res.error) setError(res.error)
       else setUsers((u) => u.filter((x) => x.id !== id))
@@ -53,25 +53,47 @@ export default function Dashboard() {
     }
   }
 
+  const handleToggleBlock = async (u) => {
+    try {
+      const secret = (adminSecret || '').trim()
+      if (!secret) return setError('Missing admin secret')
+      const res = await updateUserAdmin(secret, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
+      if (res.error) setError(res.error)
+      else {
+        setUsers((list) =>
+          list.map((x) => (x.id === u.id ? { ...x, app_metadata: { ...(x.app_metadata || {}), blocked: !Boolean(u?.app_metadata?.blocked) } } : x))
+        )
+      }
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-  setError('')
-  const secret = (adminSecret || '').trim()
+    setError('')
+    const secret = (adminSecret || '').trim()
     if (!secret) return setError('Missing admin secret')
     try {
       if (form.id) {
-        const res = await updateUserAdmin(secret, { id: form.id, email: form.email || undefined, password: form.password || undefined, name: form.name || undefined })
+        const res = await updateUserAdmin(secret, {
+          id: form.id,
+          email: form.email || undefined,
+          password: form.password || undefined,
+          name: form.name || undefined
+          // admin toggle intentionally not exposed on update form
+        })
         if (res.error) setError(res.error)
         else {
-          setForm({ id: '', email: '', name: '', password: '' })
+          setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
           await fetchUsers()
         }
       } else {
         if (!form.email || !form.password) return setError('Email and password required to create user')
-        const res = await createUserAdmin(secret, { email: form.email, password: form.password, name: form.name })
+        const res = await createUserAdmin(secret, { email: form.email, password: form.password, name: form.name, is_admin: !!form.isAdmin })
         if (res.error) setError(res.error)
         else {
-          setForm({ id: '', email: '', name: '', password: '' })
+          setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
           await fetchUsers()
         }
       }
@@ -98,9 +120,15 @@ export default function Dashboard() {
         <input className="border p-2 rounded" placeholder="Email" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Full name" value={form.name} onChange={(e)=>setForm({ ...form, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Password" type="password" value={form.password} onChange={(e)=>setForm({ ...form, password: e.target.value })} />
+        {!form.id && (
+          <label className="flex items-center gap-2 md:col-span-4">
+            <input type="checkbox" checked={form.isAdmin} onChange={(e)=>setForm({ ...form, isAdmin: e.target.checked })} />
+            <span>Make admin</span>
+          </label>
+        )}
         <div className="md:col-span-4 flex gap-2">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{form.id ? 'Update User' : 'Create User'}</button>
-          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setForm({ id: '', email: '', name: '', password: '' })}>Clear</button>
+          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setForm({ id: '', email: '', name: '', password: '', isAdmin: false })}>Clear</button>
         </div>
       </form>
 
@@ -117,12 +145,32 @@ export default function Dashboard() {
               {users.map((u) => (
                 <div key={u.id} className="bg-white p-4 rounded shadow flex items-center justify-between">
                   <div>
-                    <div className="font-semibold">{u.email}</div>
+                    <div className="font-semibold flex items-center gap-2">
+                      {u.email}
+                      {u?.app_metadata?.blocked && <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">Blocked</span>}
+                      {(u?.app_metadata?.is_admin || (Array.isArray(u?.app_metadata?.roles) && u.app_metadata.roles.includes('admin'))) && (
+                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Admin</span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-600">id: {u.id}</div>
                     {u.user_metadata?.full_name && <div className="text-sm">{u.user_metadata.full_name}</div>}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setForm({ id: u.id, email: u.email || '', name: u.user_metadata?.full_name || '', password: '' })} className="px-3 py-1 bg-yellow-400 rounded">Edit</button>
+                    <button
+                      onClick={() => setForm({
+                        id: u.id,
+                        email: u.email || '',
+                        name: u.user_metadata?.full_name || '',
+                        password: '',
+                        isAdmin: Boolean(u?.app_metadata?.is_admin || (Array.isArray(u?.app_metadata?.roles) && u.app_metadata.roles.includes('admin')))
+                      })}
+                      className="px-3 py-1 bg-yellow-400 rounded"
+                    >
+                      Edit
+                    </button>
+                    <button onClick={() => handleToggleBlock(u)} className="px-3 py-1 bg-gray-200 rounded">
+                      {u?.app_metadata?.blocked ? 'Unblock' : 'Block'}
+                    </button>
                     <button onClick={() => handleDelete(u.id)} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
                   </div>
                 </div>

@@ -20,10 +20,18 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 
   try {
+    const { is_admin } = req.body || {}
+    const app_metadata = {}
+    if (typeof is_admin === 'boolean') {
+      app_metadata.is_admin = is_admin
+      if (is_admin) app_metadata.roles = ['admin']
+    }
+
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
       user_metadata: name ? { full_name: name } : undefined,
+      app_metadata: Object.keys(app_metadata).length ? app_metadata : undefined,
       email_confirm: true
     })
     if (error) return res.status(500).json({ error: error.message })

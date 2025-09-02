@@ -18,8 +18,12 @@ export default function Login() {
     if (error) {
       setError(error.message)
     } else {
+      const u = data?.user
+      if (u?.app_metadata?.blocked) {
+        setError('Your account is blocked.')
+        return
+      }
       if (isAdminTab) {
-        const u = data?.user
         const roles = Array.isArray(u?.app_metadata?.roles) ? u.app_metadata.roles : []
         const isAdmin = Boolean(
           u?.app_metadata?.is_admin ||
