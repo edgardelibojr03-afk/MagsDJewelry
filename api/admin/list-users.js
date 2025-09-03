@@ -1,17 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
 
-export default async function handler(req, res) {
-  // Protect this endpoint with a server-only secret set in Vercel (ADMIN_SECRET)
+async function authorize(req, admin) {
   const ADMIN_SECRET = process.env.ADMIN_SECRET
-  if (!ADMIN_SECRET) return res.status(500).json({ error: 'ADMIN_SECRET not configured on server' })
-
-  // Accept secret from header or query, and be lenient with surrounding spaces
   const incomingRaw = req.headers['x-admin-secret'] || req.headers['X-Admin-Secret'] || req.query.admin_secret
   const incoming = typeof incomingRaw === 'string' ? incomingRaw.trim() : ''
   const serverSecret = (ADMIN_SECRET || '').trim()
-  if (!incoming || incoming !== serverSecret) {
-    return res.status(401).json({ error: 'Unauthorized - missing or invalid admin secret' })
-  }
+  if (incoming && serverSecret && incoming === serverSecret) return { ok: true }
+
+  const auth = req.headers['authorization'] || req.headers['Authorization']
+  const token = typeof auth === 'string' && auth.toLowerCase().startsWith('bearer ')
+    ? auth.slice(7).trim()
+    : ''
+  if (!token) return { ok: false, status: 401, error: 'Unauthorized - missing credentials' }
+  const { data, error } = await admin.auth.getUser(token)
+  if (error || !data?.user) return { ok: false, status: 401, error: 'Unauthorized - invalid token' }
+  const u = data.user
+  const roles = Array.isArray(u?.app_metadata?.roles) ? u.app_metadata.roles : []
+  const isAdmin = Boolean(u?.app_metadata?.is_admin || u?.user_metadata?.is_admin || roles.includes('admin'))
+  if (!isAdmin) return { ok: false, status: 403, error: 'Forbidden - admin only' }
+  return { ok: true, user: u }
+}
+
+export default async function handler(req, res) {
+  // Allow either ADMIN_SECRET or a valid admin user Bearer token
 
   const SUPABASE_URL = process.env.SUPABASE_URL
   const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE
@@ -20,6 +31,9 @@ export default async function handler(req, res) {
   }
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
+
+  const authz = await authorize(req, admin)
+  if (!authz.ok) return res.status(authz.status || 401).json({ error: authz.error || 'Unauthorized' })
 
   try {
     // Uses the Admin API - requires service_role key

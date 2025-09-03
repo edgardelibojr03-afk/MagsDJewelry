@@ -7,9 +7,8 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-3">
-              <img src={logo} alt="Logo" className="h-10 w-10 object-contain" />
-              <span className="text-lg font-semibold" style={{ color: '#F4EAE3' }}>Jewelry</span>
+            <Link to="/" className="flex items-center">
+              <img src={logo} alt="Logo" className="h-12 w-12 object-contain" />
             </Link>
           </div>
 

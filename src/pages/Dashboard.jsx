@@ -11,15 +11,12 @@ export default function Dashboard() {
   const [adminSecret, setAdminSecret] = useState('')
 
   const fetchUsers = async () => {
-    if (!adminSecret) {
-      setError('Admin secret required to list users. Deploy on Vercel with ADMIN_SECRET and paste it here.')
-      setUsers([])
-      return
-    }
     setLoading(true)
     setError(null)
     try {
-      const json = await fetchUsersFromAdmin(adminSecret)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      const json = await fetchUsersFromAdmin(token ? { token } : { secret: (adminSecret || '').trim() })
       if (json.error) {
         setError(json.error)
         setUsers([])
@@ -36,16 +33,16 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Auto-fetch when a secret is entered
-    if (adminSecret) fetchUsers()
+    // Auto-fetch on mount when logged in; if no token available, allow secret as fallback
+    fetchUsers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminSecret])
+  }, [])
 
   const handleDelete = async (id) => {
     try {
-      const secret = (adminSecret || '').trim()
-      if (!secret) return setError('Missing admin secret')
-      const res = await deleteUserAdmin(secret, id)
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData?.session?.access_token
+  const res = await deleteUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, id)
       if (res.error) setError(res.error)
       else setUsers((u) => u.filter((x) => x.id !== id))
     } catch (err) {
@@ -55,9 +52,9 @@ export default function Dashboard() {
 
   const handleToggleBlock = async (u) => {
     try {
-      const secret = (adminSecret || '').trim()
-      if (!secret) return setError('Missing admin secret')
-      const res = await updateUserAdmin(secret, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData?.session?.access_token
+  const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
       if (res.error) setError(res.error)
       else {
         setUsers((list) =>
@@ -72,16 +69,16 @@ export default function Dashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const secret = (adminSecret || '').trim()
-    if (!secret) return setError('Missing admin secret')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
     try {
       if (form.id) {
-        const res = await updateUserAdmin(secret, {
+        const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, {
           id: form.id,
           email: form.email || undefined,
           password: form.password || undefined,
-          name: form.name || undefined
-          // admin toggle intentionally not exposed on update form
+          name: form.name || undefined,
+          is_admin: !!form.isAdmin
         })
         if (res.error) setError(res.error)
         else {
@@ -90,7 +87,7 @@ export default function Dashboard() {
         }
       } else {
         if (!form.email || !form.password) return setError('Email and password required to create user')
-        const res = await createUserAdmin(secret, { email: form.email, password: form.password, name: form.name, is_admin: !!form.isAdmin })
+  const res = await createUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, { email: form.email, password: form.password, name: form.name, is_admin: !!form.isAdmin })
         if (res.error) setError(res.error)
         else {
           setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
@@ -109,23 +106,20 @@ export default function Dashboard() {
 
       <div className="bg-white p-4 rounded shadow mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
         <div className="flex-1 w-full">
-          <label className="block text-sm mb-1">Admin secret</label>
-          <input className="border p-2 rounded w-full" type="password" value={adminSecret} onChange={(e)=>setAdminSecret(e.target.value)} placeholder="Paste ADMIN_SECRET (server-side secret)" />
+          <label className="block text-sm mb-1">Admin secret (optional fallback)</label>
+          <input className="border p-2 rounded w-full" type="password" value={adminSecret} onChange={(e)=>setAdminSecret(e.target.value)} placeholder="If not logged in as admin, paste ADMIN_SECRET" />
         </div>
         <button onClick={fetchUsers} className="px-4 py-2 rounded bg-black text-white">Load users</button>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input className="border p-2 rounded" placeholder="User ID (leave empty to create)" value={form.id} onChange={(e)=>setForm({ ...form, id: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Email" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Full name" value={form.name} onChange={(e)=>setForm({ ...form, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Password" type="password" value={form.password} onChange={(e)=>setForm({ ...form, password: e.target.value })} />
-        {!form.id && (
-          <label className="flex items-center gap-2 md:col-span-4">
-            <input type="checkbox" checked={form.isAdmin} onChange={(e)=>setForm({ ...form, isAdmin: e.target.checked })} />
-            <span>Make admin</span>
-          </label>
-        )}
+        <label className="flex items-center gap-2 md:col-span-4">
+          <input type="checkbox" checked={form.isAdmin} onChange={(e)=>setForm({ ...form, isAdmin: e.target.checked })} />
+          <span>Make admin</span>
+        </label>
         <div className="md:col-span-4 flex gap-2">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{form.id ? 'Update User' : 'Create User'}</button>
           <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setForm({ id: '', email: '', name: '', password: '', isAdmin: false })}>Clear</button>

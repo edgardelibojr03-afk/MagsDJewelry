@@ -54,6 +54,7 @@ export default function Account() {
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Account</h1>
+  {user?.email && <p className="mb-2 text-sm text-gray-700">Email: <span className="font-medium">{user.email}</span></p>}
       {status && <p className="mb-4 text-sm text-gray-700">{status}</p>}
 
       <form onSubmit={saveProfile} className="bg-white p-4 rounded shadow mb-4">

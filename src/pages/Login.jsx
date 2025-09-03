@@ -10,7 +10,6 @@ export default function Login() {
   const [error, setError] = useState(null)
   const navigate = useNavigate()
   const { signIn, signInWithProvider, user } = useAuth()
-  const [isAdminTab, setIsAdminTab] = useState(false)
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -19,22 +18,7 @@ export default function Login() {
       setError(error.message)
     } else {
       const u = data?.user
-      if (u?.app_metadata?.blocked) {
-        setError('Your account is blocked.')
-        return
-      }
-      if (isAdminTab) {
-        const roles = Array.isArray(u?.app_metadata?.roles) ? u.app_metadata.roles : []
-        const isAdmin = Boolean(
-          u?.app_metadata?.is_admin ||
-          u?.user_metadata?.is_admin ||
-          roles.includes('admin')
-        )
-        if (!isAdmin) {
-          setError('Not authorized as admin. Ensure is_admin/roles set in app_metadata and re-login.')
-          return
-        }
-      }
+      if (u?.app_metadata?.blocked) return setError('Your account is blocked.')
       navigate('/dashboard')
     }
   }
@@ -42,11 +26,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-md w-96">
-        <div className="flex gap-4 mb-4">
-          <button type="button" onClick={() => setIsAdminTab(false)} className={`px-3 py-2 rounded ${!isAdminTab ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>User</button>
-          <button type="button" onClick={() => setIsAdminTab(true)} className={`px-3 py-2 rounded ${isAdminTab ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Admin</button>
-        </div>
-        <h2 className="text-2xl font-bold mb-6 text-center">{isAdminTab ? 'Admin Login' : 'Login'}</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
 
         <input
           type="email"
@@ -97,11 +77,9 @@ export default function Login() {
           Login
         </button>
 
-        {!isAdminTab && (
-          <div className="mt-3">
-            <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Continue with Google</button>
-          </div>
-        )}
+        <div className="mt-3">
+          <button type="button" onClick={() => signInWithProvider('google')} className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">Continue with Google</button>
+        </div>
 
         {/* Register button */}
         <div className="text-center mt-4">
@@ -113,6 +91,10 @@ export default function Login() {
           >
             Register here
           </button>
+        </div>
+
+        <div className="text-center mt-4">
+          <button type="button" onClick={() => navigate('/admin-login')} className="text-sm text-blue-600 underline">Admin login</button>
         </div>
       </form>
     </div>
