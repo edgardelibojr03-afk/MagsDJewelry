@@ -3,7 +3,7 @@ import logo from '../assets/logo.png'
 
 export default function Header() {
   return (
-    <header className="bg-white shadow">
+    <header className="shadow" style={{ backgroundColor: '#F4EAE3' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
@@ -13,11 +13,11 @@ export default function Header() {
           </div>
 
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm" style={{ color: '#F4EAE3' }}>Home</Link>
-            <Link to="/about" className="text-sm" style={{ color: '#F4EAE3' }}>About</Link>
-            <Link to="/products" className="text-sm" style={{ color: '#F4EAE3' }}>Products</Link>
+            <Link to="/" className="text-sm text-black">Home</Link>
+            <Link to="/about" className="text-sm text-black">About</Link>
+            <Link to="/products" className="text-sm text-black">Products</Link>
             {/* Cart link removed to avoid exposing admin dashboard via /cart */}
-            <Link to="/account" className="text-sm" style={{ color: '#F4EAE3' }}>Account</Link>
+            <Link to="/account" className="text-sm text-black">Account</Link>
           </nav>
 
           <div className="md:hidden">
