@@ -1,6 +1,5 @@
 // src/components/Dashboard.jsx
 import { useEffect, useState } from 'react'
-import { supabase } from '../services/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin } from '../services/adminApi'
 
@@ -10,21 +9,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
-  const [adminSecret, setAdminSecret] = useState('')
 
   const fetchUsers = async () => {
     setLoading(true)
     setError(null)
     try {
       const token = session?.access_token
-      const secret = (adminSecret || '').trim()
-      if (!token && !secret) {
+      if (!token) {
         setLoading(false)
-        setError('Please login as an admin or enter the ADMIN_SECRET to load users.')
+        setError('Please login as an admin to load users.')
         setUsers([])
         return
       }
-      const json = await fetchUsersFromAdmin(token ? { token } : { secret })
+      const json = await fetchUsersFromAdmin({ token })
       if (json.error) {
         setError(json.error)
         setUsers([])
@@ -41,17 +38,17 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Fetch when auth is ready and we have either a token or a provided secret
-    if (!authLoading && (session?.access_token || adminSecret)) {
+    // Fetch when auth is ready and we have a token
+    if (!authLoading && session?.access_token) {
       fetchUsers()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, session, adminSecret])
+  }, [authLoading, session])
 
   const handleDelete = async (id) => {
     try {
   const token = session?.access_token
-  const res = await deleteUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, id)
+  const res = await deleteUserAdmin({ token }, id)
       if (res.error) setError(res.error)
       else setUsers((u) => u.filter((x) => x.id !== id))
     } catch (err) {
@@ -62,7 +59,7 @@ export default function Dashboard() {
   const handleToggleBlock = async (u) => {
     try {
   const token = session?.access_token
-  const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
+  const res = await updateUserAdmin({ token }, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
       if (res.error) setError(res.error)
       else {
         setUsers((list) =>
@@ -80,7 +77,7 @@ export default function Dashboard() {
   const token = session?.access_token
     try {
       if (form.id) {
-        const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, {
+        const res = await updateUserAdmin({ token }, {
           id: form.id,
           email: form.email || undefined,
           password: form.password || undefined,
@@ -93,8 +90,8 @@ export default function Dashboard() {
           await fetchUsers()
         }
       } else {
-        if (!form.email || !form.password) return setError('Email and password required to create user')
-  const res = await createUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, { email: form.email, password: form.password, name: form.name, is_admin: !!form.isAdmin })
+    if (!form.email || !form.password) return setError('Email and password required to create user')
+  const res = await createUserAdmin({ token }, { email: form.email, password: form.password, name: form.name, is_admin: !!form.isAdmin })
         if (res.error) setError(res.error)
         else {
           setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
@@ -112,10 +109,6 @@ export default function Dashboard() {
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
       <div className="bg-white p-4 rounded shadow mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-        <div className="flex-1 w-full">
-          <label className="block text-sm mb-1">Admin secret (optional fallback)</label>
-          <input className="border p-2 rounded w-full" type="password" value={adminSecret} onChange={(e)=>setAdminSecret(e.target.value)} placeholder="If not logged in as admin, paste ADMIN_SECRET" />
-        </div>
         <button onClick={fetchUsers} className="px-4 py-2 rounded bg-black text-white">Load users</button>
       </div>
 

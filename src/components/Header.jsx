@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo.png'
 
 export default function Header() {
+  const { user } = useAuth()
+  const roles = Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []
+  const isAdmin = Boolean(user?.app_metadata?.is_admin || user?.user_metadata?.is_admin || roles.includes('admin'))
   return (
     <header className="shadow" style={{ backgroundColor: '#F4EAE3' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,6 +22,9 @@ export default function Header() {
             <Link to="/products" className="text-sm text-black">Products</Link>
             {/* Cart link removed to avoid exposing admin dashboard via /cart */}
             <Link to="/account" className="text-sm text-black">Account</Link>
+            {isAdmin && (
+              <Link to="/dashboard" className="text-sm text-black">Dashboard</Link>
+            )}
           </nav>
 
           <div className="md:hidden">
