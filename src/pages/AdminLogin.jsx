@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -8,7 +8,17 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
-  const { signIn } = useAuth()
+  const { signIn, user } = useAuth()
+
+  useEffect(() => {
+    if (user) {
+      const roles = Array.isArray(user?.app_metadata?.roles) ? user.app_metadata.roles : []
+      const isAdmin = Boolean(user?.app_metadata?.is_admin || user?.user_metadata?.is_admin || roles.includes('admin'))
+      if (isAdmin && !user?.app_metadata?.blocked) {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [user, navigate])
 
   const handleLogin = async (e) => {
     e.preventDefault()
