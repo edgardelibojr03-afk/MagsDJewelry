@@ -1,9 +1,11 @@
 // src/components/Dashboard.jsx
 import { useEffect, useState } from 'react'
 import { supabase } from '../services/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin } from '../services/adminApi'
 
 export default function Dashboard() {
+  const { session, loading: authLoading } = useAuth()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -14,9 +16,15 @@ export default function Dashboard() {
     setLoading(true)
     setError(null)
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-      const json = await fetchUsersFromAdmin(token ? { token } : { secret: (adminSecret || '').trim() })
+      const token = session?.access_token
+      const secret = (adminSecret || '').trim()
+      if (!token && !secret) {
+        setLoading(false)
+        setError('Please login as an admin or enter the ADMIN_SECRET to load users.')
+        setUsers([])
+        return
+      }
+      const json = await fetchUsersFromAdmin(token ? { token } : { secret })
       if (json.error) {
         setError(json.error)
         setUsers([])
@@ -33,15 +41,16 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Auto-fetch on mount when logged in; if no token available, allow secret as fallback
-    fetchUsers()
+    // Fetch when auth is ready and we have either a token or a provided secret
+    if (!authLoading && (session?.access_token || adminSecret)) {
+      fetchUsers()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [authLoading, session, adminSecret])
 
   const handleDelete = async (id) => {
     try {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData?.session?.access_token
+  const token = session?.access_token
   const res = await deleteUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, id)
       if (res.error) setError(res.error)
       else setUsers((u) => u.filter((x) => x.id !== id))
@@ -52,8 +61,7 @@ export default function Dashboard() {
 
   const handleToggleBlock = async (u) => {
     try {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData?.session?.access_token
+  const token = session?.access_token
   const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, { id: u.id, blocked: !Boolean(u?.app_metadata?.blocked) })
       if (res.error) setError(res.error)
       else {
@@ -69,8 +77,7 @@ export default function Dashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData?.session?.access_token
+  const token = session?.access_token
     try {
       if (form.id) {
         const res = await updateUserAdmin(token ? { token } : { secret: (adminSecret || '').trim() }, {
