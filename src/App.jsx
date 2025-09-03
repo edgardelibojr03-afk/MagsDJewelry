@@ -24,7 +24,7 @@ function App() {
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
-          <Route path="/cart" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          {/** /cart route removed to avoid exposing admin dashboard */}
           <Route path="/products" element={<Home />} />
           <Route path="/about" element={<Home />} />
         </Routes>

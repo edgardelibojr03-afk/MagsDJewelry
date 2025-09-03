@@ -17,9 +17,10 @@ export default function Login() {
     if (error) {
       setError(error.message)
     } else {
-      const u = data?.user
-      if (u?.app_metadata?.blocked) return setError('Your account is blocked.')
-      navigate('/dashboard')
+  const u = data?.user
+  if (u?.app_metadata?.blocked) return setError('Your account is blocked.')
+  // After customer login, redirect to the homepage (admins use the separate Admin Login page)
+  navigate('/')
     }
   }
 

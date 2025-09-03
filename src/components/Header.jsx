@@ -16,7 +16,7 @@ export default function Header() {
             <Link to="/" className="text-sm" style={{ color: '#F4EAE3' }}>Home</Link>
             <Link to="/about" className="text-sm" style={{ color: '#F4EAE3' }}>About</Link>
             <Link to="/products" className="text-sm" style={{ color: '#F4EAE3' }}>Products</Link>
-            <Link to="/cart" className="text-sm" style={{ color: '#F4EAE3' }}>Cart</Link>
+            {/* Cart link removed to avoid exposing admin dashboard via /cart */}
             <Link to="/account" className="text-sm" style={{ color: '#F4EAE3' }}>Account</Link>
           </nav>
 
