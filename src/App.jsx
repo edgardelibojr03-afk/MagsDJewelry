@@ -18,20 +18,24 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Header />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
-          <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
-          {/** /cart route removed to avoid exposing admin dashboard */}
-          <Route path="/products" element={<Products />} />
-          <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-          <Route path="/about" element={<Home />} />
-        </Routes>
-        <Footer />
+        <div className="min-h-screen flex flex-col">
+          <Header />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+              <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+              {/** /cart route removed to avoid exposing admin dashboard */}
+              <Route path="/products" element={<Products />} />
+              <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+              <Route path="/about" element={<Home />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
       </AuthProvider>
     </Router>
   )
