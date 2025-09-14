@@ -86,6 +86,41 @@ git push
 Vercel will automatically deploy on push to the connected branch.
 
 ---
+
+If you want, I can:
+- Add a small in-app prompt to enter the admin secret (keeps it in-memory only)
+- Add serverless endpoints for user delete/revoke so dashboard actions work securely
+- Create a short README section with recommended RBAC and admin setup for Supabase
+
+Tell me which next step you prefer.
+# Item images (URL or Upload)
+
+Admins can paste an image URL or upload an image directly in the Items tab. Uploads go to a Supabase Storage bucket `item-images`, and the app uses its public URL.
+
+Run this in Supabase SQL Editor to create the bucket and basic policies:
+
+```
+-- Create a public bucket for item images
+select storage.create_bucket('item-images', public := true);
+
+-- Public read for the bucket
+create policy if not exists "Public read item-images"
+on storage.objects for select
+to public using ( bucket_id = 'item-images' );
+
+-- Authenticated users can upload to the bucket
+create policy if not exists "Authenticated can upload item-images"
+on storage.objects for insert
+to authenticated with check ( bucket_id = 'item-images' );
+
+-- Optional: allow owner updates; not strictly needed for this app
+create policy if not exists "Authenticated can update own item-images"
+on storage.objects for update
+to authenticated using ( bucket_id = 'item-images' and owner = auth.uid() )
+with check ( bucket_id = 'item-images' and owner = auth.uid() );
+```
+
+Note: Ensure the bucket is public so `getPublicUrl` returns a usable URL.
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

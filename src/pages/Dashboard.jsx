@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin, adminListReservations } from '../services/adminApi'
 import { listItems, createItem, updateItem, deleteItem } from '../services/itemsApi'
 import { listReservations } from '../services/reservationsApi'
+import { supabase } from '../services/supabaseClient'
 
 export default function Dashboard() {
   const { session, loading: authLoading } = useAuth()
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState('users')
   const [items, setItems] = useState([])
   const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })
+  const [itemFile, setItemFile] = useState(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
@@ -157,12 +159,28 @@ export default function Dashboard() {
     setError('')
     const token = session?.access_token
     try {
+      let imageUrl = itemForm.image_url || null
+      // If a file is chosen, upload to Supabase Storage and use its public URL
+      if (itemFile) {
+        const file = itemFile
+        const fileName = `${(typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now()}-${file.name}`
+        const path = `items/${fileName}`
+        const { error: upErr } = await supabase.storage.from('item-images').upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || 'image/*'
+        })
+        if (upErr) throw new Error(`Upload failed: ${upErr.message}`)
+        const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path)
+        imageUrl = pub?.publicUrl || null
+      }
+
       const payload = {
         name: itemForm.name,
         purchase_price: Number(itemForm.purchase_price || 0),
         sell_price: Number(itemForm.sell_price || 0),
         total_quantity: Number(itemForm.total_quantity || 0),
-        image_url: itemForm.image_url || null
+        image_url: imageUrl
       }
       if (itemForm.id) {
         const res = await updateItem({ token }, { id: itemForm.id, ...payload })
@@ -172,6 +190,7 @@ export default function Dashboard() {
         if (res.error) return setError(res.error)
       }
       setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })
+      setItemFile(null)
       await loadItems()
     } catch (err) {
       setError(err.message)
@@ -246,15 +265,26 @@ export default function Dashboard() {
       )}
 
       {tab === 'items' && (
-      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-6 gap-3">
         <input className="border p-2 rounded" placeholder="Item name" value={itemForm.name} onChange={(e)=>setItemForm({ ...itemForm, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Purchase price (₱)" type="number" min="0" step="0.01" value={itemForm.purchase_price} onChange={(e)=>setItemForm({ ...itemForm, purchase_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Sell price (₱)" type="number" min="0" step="0.01" value={itemForm.sell_price} onChange={(e)=>setItemForm({ ...itemForm, sell_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Quantity" type="number" min="0" step="1" value={itemForm.total_quantity} onChange={(e)=>setItemForm({ ...itemForm, total_quantity: e.target.value })} />
-        <input className="border p-2 rounded" placeholder="Image URL" value={itemForm.image_url} onChange={(e)=>setItemForm({ ...itemForm, image_url: e.target.value })} />
-        <div className="md:col-span-5 flex gap-2">
+        <input className="border p-2 rounded" placeholder="Image URL (or use Upload)" value={itemForm.image_url} onChange={(e)=>setItemForm({ ...itemForm, image_url: e.target.value })} />
+        <input className="border p-2 rounded" type="file" accept="image/*" onChange={(e)=>setItemFile(e.target.files?.[0] || null)} />
+        <div className="md:col-span-6 flex gap-2 items-center">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{itemForm.id ? 'Update Item' : 'Create Item'}</button>
-          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })}>Clear</button>
+          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' }); setItemFile(null) }}>Clear</button>
+          {(itemForm.image_url || itemFile) && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Preview:</span>
+              <img
+                src={itemFile ? URL.createObjectURL(itemFile) : itemForm.image_url}
+                alt="preview"
+                className="w-12 h-12 object-cover rounded border"
+              />
+            </div>
+          )}
         </div>
       </form>
       )}
