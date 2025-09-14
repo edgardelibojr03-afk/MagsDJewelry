@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { listItems } from '../services/itemsApi'
+import { supabase } from '../services/supabaseClient'
 import { reserveDelta } from '../services/reservationsApi'
 
 export default function Products() {
@@ -8,15 +8,28 @@ export default function Products() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [qtyById, setQtyById] = useState({})
 
   const load = async () => {
     setLoading(true)
     setError('')
     try {
-      const token = session?.access_token
-      const res = await listItems({ token })
-      if (res.error) setError(res.error)
-      else setItems(res.items || [])
+      // Public read via Supabase client (RLS allows select for anon)
+      const { data, error: err } = await supabase
+        .from('items')
+        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url')
+        .order('created_at', { ascending: false })
+      if (err) setError(err.message)
+      else {
+        setItems(data || [])
+        // Initialize counters per item
+        const q = {}
+        for (const it of data || []) {
+          const available = (it.total_quantity || 0) - (it.reserved_quantity || 0)
+          q[it.id] = available > 0 ? 1 : 0
+        }
+        setQtyById(q)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -26,12 +39,14 @@ export default function Products() {
 
   useEffect(() => { load() }, [])
 
-  const onReserve = async (id, delta) => {
+  const onReserve = async (id) => {
     if (!user) return setError('Please log in to reserve items')
     const token = session?.access_token
-    const res = await reserveDelta({ token }, { item_id: id, delta })
+    const qty = Math.max(0, Number(qtyById[id] || 0))
+    if (qty <= 0) return
+    const res = await reserveDelta({ token }, { item_id: id, delta: qty })
     if (res.error) return setError(res.error)
-    // refresh items to reflect reserved_quantity changes
+    // refresh items to reflect reserved_quantity changes and reset counter
     await load()
   }
 
@@ -54,13 +69,40 @@ export default function Products() {
                   <div className="text-sm text-gray-600">Available: {available}</div>
                   <div className="text-sm">Price: ₱{Number(it.sell_price || 0).toFixed(2)}</div>
                   <div className="mt-3 flex items-center gap-2">
-                    <button className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50" onClick={() => onReserve(it.id, -1)} disabled={soldOut && true}>
+                    <button
+                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: Math.max(1, (Number(m[it.id]) || 1) - 1) }))}
+                      disabled={soldOut}
+                      aria-label="Decrease quantity"
+                    >
                       −
                     </button>
-                    <button className="px-3 py-1 bg-black text-white rounded disabled:opacity-50" onClick={() => onReserve(it.id, 1)} disabled={soldOut}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={Math.max(1, available)}
+                      className="w-16 text-center border rounded py-1"
+                      value={qtyById[it.id] || 1}
+                      onChange={(e) => {
+                        const v = Math.min(Math.max(1, Number(e.target.value || 1)), Math.max(1, available))
+                        setQtyById((m) => ({ ...m, [it.id]: v }))
+                      }}
+                    />
+                    <button
+                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: Math.min(Math.max(1, available), (Number(m[it.id]) || 1) + 1) }))}
+                      disabled={soldOut}
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                    <button
+                      className="px-3 py-1 bg-black text-white rounded disabled:opacity-50"
+                      onClick={() => onReserve(it.id)}
+                      disabled={soldOut || (qtyById[it.id] || 0) <= 0}
+                    >
                       Reserve
                     </button>
-                    <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => onReserve(it.id, 1)}>+</button>
                   </div>
                   {soldOut && <div className="mt-2 text-red-600 text-sm">Fully reserved</div>}
                 </div>
