@@ -1,7 +1,7 @@
 // src/components/Dashboard.jsx
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin } from '../services/adminApi'
+import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin, adminListReservations } from '../services/adminApi'
 import { listItems, createItem, updateItem, deleteItem } from '../services/itemsApi'
 import { listReservations } from '../services/reservationsApi'
 
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
+  const [salesTotal, setSalesTotal] = useState(0)
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -55,16 +56,21 @@ export default function Dashboard() {
   }, [authLoading, session, tab, selectedUserId])
 
   const loadUserReservations = async (uid) => {
+    if (!uid) return
     setLoading(true)
     setError('')
     try {
       const token = session?.access_token
       if (!token) return setError('Please login as an admin')
-      // Impersonation: reuse admin list-reservations endpoint not implemented; fetch via service role is not safe for client.
-      // Here we'll call the same user-facing endpoint by temporarily not possible; so for now, prompt to select user and finalize by backend endpoint only.
-      const res = await fetch('/api/admin/list-users')
-      // Placeholder: real per-user reservation listing would require a new admin endpoint.
-      setUserReservations([])
+      const res = await adminListReservations({ token }, uid)
+      if (res.error) {
+        setError(res.error)
+        setUserReservations([])
+        setSalesTotal(0)
+      } else {
+        setUserReservations(res.reservations || [])
+        setSalesTotal(Number(res.total || 0))
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -199,18 +205,27 @@ export default function Dashboard() {
         </div>
       )}
       {tab === 'sales' && (
-        <div className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-          <div>
-            <label className="block text-sm mb-1">Select user (by id)</label>
-            <input className="border p-2 rounded w-full" placeholder="User ID" value={selectedUserId} onChange={(e)=>setSelectedUserId(e.target.value)} />
+        <div className="bg-white p-4 rounded shadow mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-lg font-semibold">Select a user</div>
+            <button onClick={fetchUsers} className="px-3 py-1.5 rounded bg-black text-white">Refresh users</button>
           </div>
-          <button onClick={()=>loadUserReservations(selectedUserId)} className="px-4 py-2 rounded bg-black text-white">Load user reservations</button>
-          <button onClick={async()=>{
-            const token = session?.access_token
-            const res = await fetch('/api/admin/sales/finalize', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: selectedUserId }) })
-            const json = await res.json()
-            if (json.error) setError(json.error); else alert(`Sale finalized. Total: ₱${Number(json.total||0).toFixed(2)}`)
-          }} className="px-4 py-2 rounded bg-green-600 text-white">Finalize sale</button>
+          {users.length === 0 ? (
+            <p className="text-sm text-gray-600">No users found.</p>
+          ) : (
+            <div className="grid gap-2 max-h-64 overflow-auto">
+              {users.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => { setSelectedUserId(u.id); loadUserReservations(u.id) }}
+                  className={`text-left px-3 py-2 rounded border ${selectedUserId===u.id? 'bg-gray-100 border-gray-400':'bg-white'}`}
+                >
+                  <div className="font-medium">{u.email}</div>
+                  <div className="text-xs text-gray-600">{u.user_metadata?.full_name || '—'} • {u.id}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -323,8 +338,44 @@ export default function Dashboard() {
           )}
 
           {tab === 'sales' && (
-            <div className="bg-white p-4 rounded shadow">
-              <p>Sales management: after entering a user ID, click Finalize sale to deduct their reserved items from stock and clear their cart. Email receipt is a future enhancement.</p>
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded shadow">
+                <div className="font-semibold mb-2">Reservations</div>
+                {userReservations.length === 0 ? (
+                  <p className="text-sm text-gray-600">No reservations for this user.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {userReservations.map((r) => (
+                      <div key={r.id} className="flex items-center gap-3 border rounded p-2">
+                        <img src={r.items?.image_url || '/vite.svg'} alt={r.items?.name || ''} className="w-12 h-12 object-cover rounded" />
+                        <div className="flex-1">
+                          <div className="font-medium">{r.items?.name || 'Item'}</div>
+                          <div className="text-sm text-gray-600">Qty: {r.quantity} • ₱{Number(r.items?.sell_price||0).toFixed(2)}</div>
+                        </div>
+                        <div className="font-semibold">₱{(Number(r.items?.sell_price||0)*Number(r.quantity||0)).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="bg-white p-4 rounded shadow flex items-center justify-between">
+                <div className="font-semibold">Total: ₱{Number(salesTotal).toFixed(2)}</div>
+                <button
+                  disabled={!selectedUserId}
+                  onClick={async()=>{
+                    const token = session?.access_token
+                    const res = await fetch('/api/admin/sales/finalize', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: selectedUserId }) })
+                    const json = await res.json()
+                    if (json.error) setError(json.error)
+                    else {
+                      alert(`Sale finalized. Total: ₱${Number(json.total||0).toFixed(2)}`)
+                      setUserReservations([])
+                      setSalesTotal(0)
+                    }
+                  }}
+                  className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
+                >Finalize sale</button>
+              </div>
             </div>
           )}
         </div>

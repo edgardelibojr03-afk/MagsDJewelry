@@ -40,6 +40,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ users: result.data })
     }
 
+    if (action === 'reservations') {
+      const { user_id } = (req.method === 'GET' ? req.query : req.body) || {}
+      if (!user_id) return res.status(400).json({ error: 'user_id is required' })
+      const { data, error } = await admin
+        .from('reservations')
+        .select(`
+          id,
+          item_id,
+          quantity,
+          created_at,
+          items:items(id, name, sell_price, image_url, available_quantity)
+        `)
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false })
+      if (error) return res.status(500).json({ error: error.message })
+      const reservations = data || []
+      const total = reservations.reduce((sum, r) => sum + (Number(r?.items?.sell_price || 0) * Number(r?.quantity || 0)), 0)
+      return res.status(200).json({ reservations, total })
+    }
+
     if (action === 'create') {
       const { email, password, name, is_admin } = req.body || {}
       if (!email || !password) return res.status(400).json({ error: 'email and password are required' })

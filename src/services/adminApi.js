@@ -28,3 +28,10 @@ export async function deleteUserAdmin({ secret, token } = {}, id) {
   const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'delete', id }) })
   return res.json()
 }
+
+// New: admin list reservations for a user
+export async function adminListReservations({ secret, token } = {}, user_id) {
+  const url = `${ADMIN_ENDPOINT}?action=reservations&user_id=${encodeURIComponent(user_id)}`
+  const res = await fetch(url, { headers: buildHeaders({ secret, token }) })
+  return res.json()
+}
