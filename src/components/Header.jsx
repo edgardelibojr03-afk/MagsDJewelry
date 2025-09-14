@@ -32,6 +32,13 @@ export default function Header() {
                 <path d="M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z" />
               </svg>
             </Link>
+            {user && (
+              <Link to="/cart" aria-label="Cart" title="Cart" className="text-black">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                  <path d="M2.25 3.75A.75.75 0 0 1 3 3h1.386a1.5 1.5 0 0 1 1.447 1.105L6.6 6h12.9a.75.75 0 0 1 .728.934l-1.5 6A.75.75 0 0 1 18 13.5H7.2l-.3 1.2a1.5 1.5 0 0 1-1.447 1.1H4.5a.75.75 0 0 1 0-1.5h.953l1.8-7.2L6.05 5.2a.001.001 0 0 0-.001-.001H3a.75.75 0 0 1-.75-.75Zm5.25 14.25a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm9-1.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
+                </svg>
+              </Link>
+            )}
             <Link to="/account" aria-label="Account" title="Account" className="text-black">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
                 <path fillRule="evenodd" d="M12 2.25a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm-7.5 18a7.5 7.5 0 1 1 15 0v.75H4.5V20.25Z" clipRule="evenodd" />
