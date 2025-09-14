@@ -1,4 +1,4 @@
-const ADMIN_ENDPOINT = '/api/admin/list-users'
+const ADMIN_ENDPOINT = '/api/admin/users'
 
 function buildHeaders({ secret, token, json = false } = {}) {
   const headers = {}
@@ -9,35 +9,22 @@ function buildHeaders({ secret, token, json = false } = {}) {
 }
 
 export async function fetchUsersFromAdmin({ secret, token } = {}) {
-  const res = await fetch(ADMIN_ENDPOINT, {
-    headers: buildHeaders({ secret, token })
-  })
+  const url = `${ADMIN_ENDPOINT}?action=list`
+  const res = await fetch(url, { headers: buildHeaders({ secret, token }) })
   return res.json()
 }
 
 export async function createUserAdmin({ secret, token } = {}, payload) {
-  const res = await fetch('/api/admin/create-user', {
-    method: 'POST',
-    headers: buildHeaders({ secret, token, json: true }),
-    body: JSON.stringify(payload)
-  })
+  const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'create', ...payload }) })
   return res.json()
 }
 
 export async function updateUserAdmin({ secret, token } = {}, payload) {
-  const res = await fetch('/api/admin/update-user', {
-    method: 'POST',
-    headers: buildHeaders({ secret, token, json: true }),
-    body: JSON.stringify(payload)
-  })
+  const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'update', ...payload }) })
   return res.json()
 }
 
 export async function deleteUserAdmin({ secret, token } = {}, id) {
-  const res = await fetch('/api/admin/delete-user', {
-    method: 'POST',
-    headers: buildHeaders({ secret, token, json: true }),
-    body: JSON.stringify({ id })
-  })
+  const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'delete', id }) })
   return res.json()
 }

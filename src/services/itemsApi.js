@@ -6,33 +6,21 @@ function authHeaders(token, json = false) {
 }
 
 export async function listItems({ token } = {}) {
-  const res = await fetch('/api/admin/items/list', { headers: authHeaders(token) })
+  const res = await fetch('/api/admin/items?action=list', { headers: authHeaders(token) })
   return res.json()
 }
 
 export async function createItem({ token }, payload) {
-  const res = await fetch('/api/admin/items/create', {
-    method: 'POST',
-    headers: authHeaders(token, true),
-    body: JSON.stringify(payload)
-  })
+  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'create', ...payload }) })
   return res.json()
 }
 
 export async function updateItem({ token }, payload) {
-  const res = await fetch('/api/admin/items/update', {
-    method: 'POST',
-    headers: authHeaders(token, true),
-    body: JSON.stringify(payload)
-  })
+  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'update', ...payload }) })
   return res.json()
 }
 
 export async function deleteItem({ token }, id) {
-  const res = await fetch('/api/admin/items/delete', {
-    method: 'POST',
-    headers: authHeaders(token, true),
-    body: JSON.stringify({ id })
-  })
+  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'delete', id }) })
   return res.json()
 }
