@@ -7,6 +7,8 @@ import Login from './pages/Login'
 import AdminLogin from './pages/AdminLogin'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Products from './pages/Products'
+import Cart from './pages/Cart'
 import Account from './pages/Account'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -25,7 +27,8 @@ function App() {
           <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
           {/** /cart route removed to avoid exposing admin dashboard */}
-          <Route path="/products" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
           <Route path="/about" element={<Home />} />
         </Routes>
         <Footer />
