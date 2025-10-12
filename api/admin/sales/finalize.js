@@ -36,6 +36,9 @@ export default async function handler(req, res) {
       .eq('user_id', user_id)
     if (error) return res.status(500).json({ error: error.message })
     let total = 0
+    // create sale header first
+    const { data: sale, error: saleErr } = await admin.from('sales').insert({ user_id }).select('*').single()
+    if (saleErr) return res.status(500).json({ error: saleErr.message })
     for (const r of rows) {
       const q = r.quantity || 0
       const price = r.item?.sell_price || 0
@@ -43,11 +46,14 @@ export default async function handler(req, res) {
       const newTotalQty = Math.max(0, (r.item?.total_quantity || 0) - q)
       const newReserved = Math.max(0, (r.item?.reserved_quantity || 0) - q)
       await admin.from('items').update({ total_quantity: newTotalQty, reserved_quantity: newReserved }).eq('id', r.item_id)
+      // record line detail with price at purchase
+      await admin.from('sale_items').insert({ sale_id: sale.id, item_id: r.item_id, quantity: q, price_at_purchase: price })
     }
     await admin.from('reservations').delete().eq('user_id', user_id)
+    await admin.from('sales').update({ total }).eq('id', sale.id)
 
     // TODO: Send simple email receipt via an email provider (e.g., Resend, SendGrid). Placeholder response for now.
-    return res.status(200).json({ ok: true, total })
+  return res.status(200).json({ ok: true, total, sale_id: sale.id })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../services/supabaseClient'
+import { currency } from '../utils/format'
 import { reserveDelta } from '../services/reservationsApi'
 
 export default function Products() {
@@ -67,7 +68,7 @@ export default function Products() {
                 <div className="p-4">
                   <div className="font-semibold text-lg">{it.name}</div>
                   <div className="text-sm text-gray-600">Available: {available}</div>
-                  <div className="text-sm">Price: ₱{Number(it.sell_price || 0).toFixed(2)}</div>
+                  <div className="text-sm">Price: {currency(it.sell_price || 0)}</div>
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { listReservations, reserveDelta, cancelAllReservations } from '../services/reservationsApi'
+import { currency, formatDateTime, countdownTo } from '../utils/format'
 
 export default function Cart() {
   const { session, user } = useAuth()
@@ -56,7 +57,10 @@ export default function Cart() {
               <img src={r.item?.image_url || '/vite.svg'} alt={r.item?.name} className="w-20 h-20 object-cover rounded" />
               <div className="flex-1">
                 <div className="font-semibold">{r.item?.name}</div>
-                <div className="text-sm">₱{Number(r.item?.sell_price || 0).toFixed(2)}</div>
+                <div className="text-sm">{currency(r.item?.sell_price || 0)}</div>
+                {r.created_at && (
+                  <div className="text-xs text-gray-600 mt-1">Reserved: {formatDateTime(r.created_at)}{r.expires_at ? ` • ${countdownTo(r.expires_at).text}` : ''}</div>
+                )}
                 <div className="mt-2 flex items-center gap-2">
                   <button className="px-2 py-1 bg-gray-200 rounded" onClick={() => changeQty(r.item?.id, -1)}>−</button>
                   <span>{r.quantity}</span>
@@ -67,7 +71,7 @@ export default function Cart() {
           ))}
           <div className="flex items-center justify-between font-semibold">
             <div>Total</div>
-            <div>₱{total.toFixed(2)}</div>
+            <div>{currency(total)}</div>
           </div>
           <div className="flex gap-2">
             <button className="px-4 py-2 bg-gray-200 rounded" onClick={cancelAll}>Cancel all</button>

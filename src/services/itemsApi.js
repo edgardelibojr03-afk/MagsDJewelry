@@ -24,3 +24,8 @@ export async function deleteItem({ token }, id) {
   const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'delete', id }) })
   return res.json()
 }
+
+export async function restockItem({ token }, { id, quantity }) {
+  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'restock', id, quantity }) })
+  return res.json()
+}

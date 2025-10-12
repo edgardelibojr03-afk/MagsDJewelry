@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     if (action === 'list') {
       const { data, error } = await admin
         .from('reservations')
-        .select('id, quantity, item:items(id, name, sell_price, image_url)')
+        .select('id, quantity, created_at, item:items(id, name, sell_price, image_url)')
         .eq('user_id', user.id)
       if (error) return res.status(500).json({ error: error.message })
       return res.status(200).json({ reservations: data })
@@ -44,14 +44,15 @@ export default async function handler(req, res) {
       const { data: existing } = await admin.from('reservations').select('*').eq('user_id', user.id).eq('item_id', item_id).maybeSingle()
       const newQty = Math.max(0, (existing?.quantity || 0) + delta)
       if (!existing && newQty === 0) return res.status(200).json({ ok: true, quantity: 0 })
+      const expires_at = new Date(Date.now() + 30*24*60*60*1000).toISOString()
       if (!existing) {
-        const { error: insErr } = await admin.from('reservations').insert({ user_id: user.id, item_id, quantity: newQty })
+        const { error: insErr } = await admin.from('reservations').insert({ user_id: user.id, item_id, quantity: newQty, created_at: new Date().toISOString(), expires_at })
         if (insErr) return res.status(500).json({ error: insErr.message })
       } else if (newQty === 0) {
         const { error: delErr } = await admin.from('reservations').delete().eq('id', existing.id)
         if (delErr) return res.status(500).json({ error: delErr.message })
       } else {
-        const { error: updErr } = await admin.from('reservations').update({ quantity: newQty }).eq('id', existing.id)
+        const { error: updErr } = await admin.from('reservations').update({ quantity: newQty, expires_at }).eq('id', existing.id)
         if (updErr) return res.status(500).json({ error: updErr.message })
       }
       const reservedDelta = newQty - (existing?.quantity || 0)

@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin, adminListReservations } from '../services/adminApi'
-import { listItems, createItem, updateItem, deleteItem } from '../services/itemsApi'
+import { listItems, createItem, updateItem, deleteItem, restockItem } from '../services/itemsApi'
+import { currency, formatDateTime } from '../utils/format'
 import { listReservations } from '../services/reservationsApi'
 import { supabase } from '../services/supabaseClient'
 
@@ -14,8 +15,9 @@ export default function Dashboard() {
   const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
   const [tab, setTab] = useState('users')
   const [items, setItems] = useState([])
-  const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })
+  const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '' })
   const [itemFile, setItemFile] = useState(null)
+  const [restockQty, setRestockQty] = useState('')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
@@ -175,12 +177,18 @@ export default function Dashboard() {
         imageUrl = pub?.publicUrl || null
       }
 
+      if (Number(itemForm.sell_price || 0) < Number(itemForm.purchase_price || 0)) {
+        throw new Error('Sell price cannot be less than purchase price')
+      }
       const payload = {
         name: itemForm.name,
         purchase_price: Number(itemForm.purchase_price || 0),
         sell_price: Number(itemForm.sell_price || 0),
         total_quantity: Number(itemForm.total_quantity || 0),
-        image_url: imageUrl
+        image_url: imageUrl,
+        status: itemForm.status,
+        discount_type: itemForm.discount_type,
+        discount_value: Number(itemForm.discount_value || 0)
       }
       if (itemForm.id) {
         const res = await updateItem({ token }, { id: itemForm.id, ...payload })
@@ -189,7 +197,7 @@ export default function Dashboard() {
         const res = await createItem({ token }, payload)
         if (res.error) return setError(res.error)
       }
-      setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' })
+      setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '' })
       setItemFile(null)
       await loadItems()
     } catch (err) {
@@ -265,13 +273,26 @@ export default function Dashboard() {
       )}
 
       {tab === 'items' && (
-      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-6 gap-3">
+      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-8 gap-3">
         <input className="border p-2 rounded" placeholder="Item name" value={itemForm.name} onChange={(e)=>setItemForm({ ...itemForm, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Purchase price (₱)" type="number" min="0" step="0.01" value={itemForm.purchase_price} onChange={(e)=>setItemForm({ ...itemForm, purchase_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Sell price (₱)" type="number" min="0" step="0.01" value={itemForm.sell_price} onChange={(e)=>setItemForm({ ...itemForm, sell_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Quantity" type="number" min="0" step="1" value={itemForm.total_quantity} onChange={(e)=>setItemForm({ ...itemForm, total_quantity: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Image URL (or use Upload)" value={itemForm.image_url} onChange={(e)=>setItemForm({ ...itemForm, image_url: e.target.value })} />
         <input className="border p-2 rounded" type="file" accept="image/*" onChange={(e)=>setItemFile(e.target.files?.[0] || null)} />
+        <select className="border p-2 rounded" value={itemForm.status} onChange={(e)=>setItemForm({ ...itemForm, status: e.target.value })}>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="archived">Archived</option>
+        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <select className="border p-2 rounded" value={itemForm.discount_type} onChange={(e)=>setItemForm({ ...itemForm, discount_type: e.target.value })}>
+            <option value="none">No discount</option>
+            <option value="percent">% off</option>
+            <option value="fixed">Fixed ₱ off</option>
+          </select>
+          <input className="border p-2 rounded" placeholder="Discount value" type="number" min="0" step="0.01" value={itemForm.discount_value} onChange={(e)=>setItemForm({ ...itemForm, discount_value: e.target.value })} />
+        </div>
         <div className="md:col-span-6 flex gap-2 items-center">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{itemForm.id ? 'Update Item' : 'Create Item'}</button>
           <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' }); setItemFile(null) }}>Clear</button>
@@ -349,9 +370,9 @@ export default function Dashboard() {
                     <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-24 h-24 object-cover rounded" />
                     <div className="flex-1">
                       <div className="font-semibold">{it.name}</div>
-                      <div className="text-sm text-gray-600">Qty: {it.total_quantity} • Reserved: {it.reserved_quantity}</div>
-                      <div className="text-sm">₱{Number(it.sell_price || 0).toFixed(2)}</div>
-                      <div className="mt-2 flex gap-2">
+                      <div className="text-sm text-gray-600">Qty: {Number(it.total_quantity||0).toLocaleString()} • Reserved: {Number(it.reserved_quantity||0).toLocaleString()}</div>
+                      <div className="text-sm">{currency(it.sell_price)}</div>
+                      <div className="mt-2 flex flex-wrap gap-2 items-center">
                         <button
                           className="px-2 py-1 bg-yellow-400 rounded"
                           onClick={() => setItemForm({ id: it.id, name: it.name || '', purchase_price: it.purchase_price || '', sell_price: it.sell_price || '', total_quantity: it.total_quantity || '', image_url: it.image_url || '' })}
@@ -359,6 +380,10 @@ export default function Dashboard() {
                           Edit
                         </button>
                         <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleItemDelete(it.id)}>Delete</button>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <input type="number" className="border p-1 rounded w-24" placeholder="Restock qty" value={restockQty} onChange={(e)=>setRestockQty(e.target.value)} />
+                          <button className="px-2 py-1 bg-green-600 text-white rounded" onClick={async()=>{ const token=session?.access_token; const res=await restockItem({ token }, { id: it.id, quantity: Number(restockQty||0) }); if(res.error){setError(res.error)} else { setRestockQty(''); await loadItems(); } }}>Restock</button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -380,7 +405,10 @@ export default function Dashboard() {
                         <img src={r.items?.image_url || '/vite.svg'} alt={r.items?.name || ''} className="w-12 h-12 object-cover rounded" />
                         <div className="flex-1">
                           <div className="font-medium">{r.items?.name || 'Item'}</div>
-                          <div className="text-sm text-gray-600">Qty: {r.quantity} • ₱{Number(r.items?.sell_price||0).toFixed(2)}</div>
+                          <div className="text-sm text-gray-600">Qty: {r.quantity} • {currency(r.items?.sell_price||0)}</div>
+                          {r.created_at && (
+                            <div className="text-xs text-gray-500">Reserved: {formatDateTime(r.created_at)}</div>
+                          )}
                         </div>
                         <div className="font-semibold">₱{(Number(r.items?.sell_price||0)*Number(r.quantity||0)).toFixed(2)}</div>
                       </div>
@@ -389,7 +417,7 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="bg-white p-4 rounded shadow flex items-center justify-between">
-                <div className="font-semibold">Total: ₱{Number(salesTotal).toFixed(2)}</div>
+                <div className="font-semibold">Total: {currency(salesTotal)}</div>
                 <button
                   disabled={!selectedUserId}
                   onClick={async()=>{
