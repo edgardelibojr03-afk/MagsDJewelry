@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [items, setItems] = useState([])
   const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '' })
   const [itemFile, setItemFile] = useState(null)
-  const [restockQty, setRestockQty] = useState('')
+  const [restockQtyMap, setRestockQtyMap] = useState({})
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
@@ -381,8 +381,27 @@ export default function Dashboard() {
                         </button>
                         <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleItemDelete(it.id)}>Delete</button>
                         <div className="flex items-center gap-1 ml-auto">
-                          <input type="number" className="border p-1 rounded w-24" placeholder="Restock qty" value={restockQty} onChange={(e)=>setRestockQty(e.target.value)} />
-                          <button className="px-2 py-1 bg-green-600 text-white rounded" onClick={async()=>{ const token=session?.access_token; const res=await restockItem({ token }, { id: it.id, quantity: Number(restockQty||0) }); if(res.error){setError(res.error)} else { setRestockQty(''); await loadItems(); } }}>Restock</button>
+                          <input
+                            type="number"
+                            className="border p-1 rounded w-24"
+                            placeholder="Restock qty"
+                            value={restockQtyMap[it.id] ?? ''}
+                            onChange={(e)=> setRestockQtyMap((m)=> ({ ...m, [it.id]: e.target.value }))}
+                          />
+                          <button
+                            className="px-2 py-1 bg-green-600 text-white rounded"
+                            onClick={async()=>{
+                              const token = session?.access_token
+                              const qty = Number(restockQtyMap[it.id] || 0)
+                              if (!Number.isFinite(qty) || qty <= 0) { setError('Enter a valid restock quantity'); return }
+                              const res = await restockItem({ token }, { id: it.id, quantity: qty })
+                              if (res.error) { setError(res.error) }
+                              else {
+                                setRestockQtyMap((m)=> ({ ...m, [it.id]: '' }))
+                                await loadItems()
+                              }
+                            }}
+                          >Restock</button>
                         </div>
                       </div>
                     </div>
