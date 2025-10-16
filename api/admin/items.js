@@ -82,8 +82,16 @@ export default async function handler(req, res) {
       if (!id) return res.status(400).json({ error: 'id is required' })
       const qty = Number(quantity || 0)
       if (!Number.isFinite(qty) || qty <= 0) return res.status(400).json({ error: 'quantity must be > 0' })
-      const { data: curr, error: readErr } = await admin.from('items').select('total_quantity').eq('id', id).single()
+      // Read current row including prices to avoid triggering constraint silently
+      const { data: curr, error: readErr } = await admin
+        .from('items')
+        .select('total_quantity,purchase_price,sell_price')
+        .eq('id', id)
+        .single()
       if (readErr) return res.status(500).json({ error: readErr.message })
+      if (Number(curr?.sell_price ?? 0) < Number(curr?.purchase_price ?? 0)) {
+        return res.status(400).json({ error: 'Item price invalid: sell price is less than purchase price. Please fix the item pricing before restocking.' })
+      }
       const newQty = Number(curr?.total_quantity || 0) + qty
       const { data, error } = await admin.from('items').update({ total_quantity: newQty }).eq('id', id).select('*').single()
       if (error) return res.status(500).json({ error: error.message })
