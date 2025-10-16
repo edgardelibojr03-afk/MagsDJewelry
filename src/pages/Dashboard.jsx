@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
   const [lastSaleId, setLastSaleId] = useState('')
+  const [recentSales, setRecentSales] = useState([])
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -56,7 +57,10 @@ export default function Dashboard() {
     if (!authLoading && session?.access_token) {
   if (tab === 'users') fetchUsers()
   if (tab === 'items') loadItems()
-  if (tab === 'sales' && selectedUserId) loadUserReservations(selectedUserId)
+  if (tab === 'sales') {
+    if (selectedUserId) loadUserReservations(selectedUserId)
+    loadRecentSales()
+  }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, session, tab, selectedUserId])
@@ -101,6 +105,19 @@ export default function Dashboard() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRecentSales = async () => {
+    try {
+      const token = session?.access_token
+      if (!token) return
+      const resp = await fetch('/api/admin/sales/history', { headers: { Authorization: `Bearer ${token}` } })
+      const json = await resp.json()
+      if (!resp.ok || json.error) throw new Error(json.error || `Failed to load sales (${resp.status})`)
+      setRecentSales(json.sales || [])
+    } catch (e) {
+      // swallow errors in background; optional to surface
     }
   }
 
@@ -542,6 +559,7 @@ export default function Dashboard() {
                       setUserReservations([])
                       setSalesTotal(0)
                       setLastSaleId(json.sale_id || '')
+                      loadRecentSales()
                     }
                   }}
                   className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
@@ -571,6 +589,45 @@ export default function Dashboard() {
                   }}
                   className="ml-2 px-4 py-2 rounded bg-indigo-600 text-white disabled:opacity-50"
                 >Download invoice</button>
+              </div>
+              <div className="bg-white p-4 rounded shadow">
+                <div className="font-semibold mb-2">Recent sales</div>
+                {recentSales.length === 0 ? (
+                  <p className="text-sm text-gray-600">No recent sales.</p>
+                ) : (
+                  <div className="grid gap-2 max-h-64 overflow-auto">
+                    {recentSales.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between border rounded p-2">
+                        <div>
+                          <div className="font-medium">{new Date(s.created_at).toLocaleString()}</div>
+                          <div className="text-xs text-gray-600">Sale ID: {s.id} • User: {s.user_id}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-semibold">{currency(s.total)}</div>
+                          <button
+                            onClick={async()=>{
+                              try {
+                                const token = session?.access_token
+                                const resp = await fetch(`/api/admin/sales/invoice?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
+                                if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
+                                const blob = await resp.blob()
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `invoice_${s.id}.pdf`
+                                document.body.appendChild(a)
+                                a.click()
+                                a.remove()
+                                URL.revokeObjectURL(url)
+                              } catch (e) { setError(e.message) }
+                            }}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded"
+                          >Download</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

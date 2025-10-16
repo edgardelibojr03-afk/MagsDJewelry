@@ -25,6 +25,8 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   const SUPABASE_URL = process.env.SUPABASE_URL
   const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE
+  const SHOP_NAME = process.env.SHOP_NAME || 'MagsD Jewelry'
+  const SHOP_LOGO_URL = process.env.SHOP_LOGO_URL || ''
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
     return res.status(500).json({ error: 'Supabase env vars not configured' })
   }
@@ -44,35 +46,79 @@ export default async function handler(req, res) {
       .eq('sale_id', sale_id)
     if (lErr) return res.status(500).json({ error: lErr.message })
 
+    // Fetch customer info
+    let customerEmail = ''
+    let customerName = ''
+    try {
+      const { data: ures } = await admin.auth.admin.getUserById(sale.user_id)
+      const usr = ures?.user
+      customerEmail = usr?.email || ''
+      customerName = usr?.user_metadata?.full_name || usr?.user_metadata?.name || ''
+    } catch {}
+
     const pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([595, 842]) // A4 portrait
-    const { width, height } = page.getSize()
+    let page = pdfDoc.addPage([595, 842]) // A4 portrait
+    let { width, height } = page.getSize()
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const margin = 50
+    let y = height - margin
 
-    let y = height - 50
     const drawText = (text, x, yy, opts = {}) => {
       page.drawText(String(text ?? ''), { x, y: yy, size: opts.size || 12, font: opts.bold ? fontBold : font, color: opts.color || rgb(0,0,0) })
     }
+    const newPage = () => {
+      page = pdfDoc.addPage([595, 842])
+      const sz = page.getSize()
+      width = sz.width
+      height = sz.height
+      y = height - margin
+    }
 
     // Header
-    drawText('Invoice', 50, y, { size: 24, bold: true })
-    y -= 30
-    drawText(`Sale ID: ${sale.id}`, 50, y)
-    y -= 18
-    drawText(`Date: ${new Date(sale.created_at || Date.now()).toLocaleString()}`, 50, y)
-    y -= 6
-    drawText(`User ID: ${sale.user_id}`, 50, y)
+    // Optional logo
+    if (SHOP_LOGO_URL) {
+      try {
+        const resp = await fetch(SHOP_LOGO_URL)
+        const arr = new Uint8Array(await resp.arrayBuffer())
+        let img
+        if (SHOP_LOGO_URL.toLowerCase().endsWith('.png')) img = await pdfDoc.embedPng(arr)
+        else img = await pdfDoc.embedJpg(arr)
+        const iw = 80
+        const ih = (img.height / img.width) * iw
+        page.drawImage(img, { x: margin, y: y - ih, width: iw, height: ih })
+        drawText(SHOP_NAME, margin + iw + 10, y - 10, { size: 18, bold: true })
+        y -= Math.max(ih, 30) + 10
+      } catch {
+        drawText(SHOP_NAME, margin, y, { size: 18, bold: true })
+        y -= 24
+      }
+    } else {
+      drawText(SHOP_NAME, margin, y, { size: 18, bold: true })
+      y -= 24
+    }
+    drawText('Invoice', margin, y, { size: 16, bold: true })
+    y -= 20
+    drawText(`Sale ID: ${sale.id}`, margin, y)
+    y -= 16
+    drawText(`Date: ${new Date(sale.created_at || Date.now()).toLocaleString()}`, margin, y)
+    y -= 16
+    const cust = customerName || customerEmail || sale.user_id
+    drawText(`Customer: ${cust}`, margin, y)
     y -= 24
 
     // Table headers
-    drawText('Item', 50, y, { bold: true })
-    drawText('Qty', 300, y, { bold: true })
-  drawText('Unit Price', 360, y, { bold: true })
-  drawText('Line Total', 460, y, { bold: true })
+    const colItem = margin
+    const colQty = 300
+    const colUnit = 360
+    const colLine = 460
+    drawText('Item', colItem, y, { bold: true })
+    drawText('Qty', colQty, y, { bold: true })
+    drawText('Unit Price', colUnit, y, { bold: true })
+    drawText('Line Total', colLine, y, { bold: true })
     y -= 12
-    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
-    y -= 10
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
+    y -= 8
 
     let total = 0
     for (const li of lines || []) {
@@ -81,21 +127,28 @@ export default async function handler(req, res) {
       const unit = Number(li.price_at_purchase || 0)
       const lineTotal = qty * unit
       total += lineTotal
-      if (y < 80) {
-        // new page
-        y = height - 60
+      if (y < 90) {
+        newPage()
+        // reprint table header on new page
+        drawText('Item', colItem, y, { bold: true })
+        drawText('Qty', colQty, y, { bold: true })
+        drawText('Unit Price', colUnit, y, { bold: true })
+        drawText('Line Total', colLine, y, { bold: true })
+        y -= 12
+        page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
+        y -= 8
       }
-      drawText(name, 50, y)
-  drawText(qty, 300, y)
-  drawText(php(unit), 360, y)
-  drawText(php(lineTotal), 460, y)
+      drawText(name, colItem, y)
+      drawText(qty, colQty, y)
+      drawText(php(unit), colUnit, y)
+      drawText(php(lineTotal), colLine, y)
       y -= 18
     }
 
-    y -= 10
-    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
-    y -= 18
-  drawText(`Total: ${php(total)}`, 460, y, { bold: true })
+    y -= 8
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
+    y -= 16
+    drawText(`Total: ${php(total)}`, colLine, y, { bold: true })
 
     const pdfBytes = await pdfDoc.save()
     res.setHeader('Content-Type', 'application/pdf')
