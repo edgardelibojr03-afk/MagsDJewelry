@@ -216,8 +216,20 @@ export default function Dashboard() {
   const handleItemDelete = async (id) => {
     const token = session?.access_token
     const res = await deleteItem({ token }, id)
-    if (res.error) setError(res.error)
-    else setItems((arr) => arr.filter((x) => x.id !== id))
+    if (res?.error) {
+      if (res.code === 'FK_VIOLATION') {
+        const ok = window.confirm('This item has existing reservations. Delete those reservations and then delete the item?')
+        if (ok) {
+          const res2 = await deleteItem({ token }, id, { force: true })
+          if (res2?.error) setError(res2.error)
+          else await loadItems()
+        }
+      } else {
+        setError(res.error)
+      }
+    } else {
+      setItems((arr) => arr.filter((x) => x.id !== id))
+    }
   }
 
   return (

@@ -24,8 +24,10 @@ export async function updateItem({ token }, payload) {
   return res.json()
 }
 
-export async function deleteItem({ token }, id) {
-  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'delete', id }) })
+export async function deleteItem({ token }, id, { force } = {}) {
+  const body = { action: 'delete', id }
+  if (force === true) body.force = true
+  const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify(body) })
   return res.json()
 }
 
