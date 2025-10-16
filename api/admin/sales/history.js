@@ -28,9 +28,23 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { data, error } = await admin.from('sales').select('*').order('created_at', { ascending: false }).limit(100)
+    // Fetch sales with status; compute net_total = total - sum(refunds.total)
+    const { data: sales, error } = await admin.from('sales').select('*').order('created_at', { ascending: false }).limit(100)
     if (error) return res.status(500).json({ error: error.message })
-    return res.status(200).json({ sales: data })
+    const ids = (sales || []).map((s) => s.id)
+    let refundMap = {}
+    if (ids.length) {
+      const { data: refundRows } = await admin.from('refunds').select('sale_id,total').in('sale_id', ids)
+      for (const r of refundRows || []) {
+        refundMap[r.sale_id] = (refundMap[r.sale_id] || 0) + Number(r.total || 0)
+      }
+    }
+    const enriched = (sales || []).map((s) => ({
+      ...s,
+      refunded_total: refundMap[s.id] || 0,
+      net_total: Number(s.total || 0) - (refundMap[s.id] || 0)
+    }))
+    return res.status(200).json({ sales: enriched })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

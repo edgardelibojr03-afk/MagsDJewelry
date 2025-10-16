@@ -599,11 +599,20 @@ export default function Dashboard() {
                     {recentSales.map((s) => (
                       <div key={s.id} className="flex items-center justify-between border rounded p-2">
                         <div>
-                          <div className="font-medium">{new Date(s.created_at).toLocaleString()}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {new Date(s.created_at).toLocaleString()}
+                            {s.status === 'voided' && (
+                              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">VOIDED</span>
+                            )}
+                          </div>
                           <div className="text-xs text-gray-600">Sale ID: {s.id} • User: {s.user_id}</div>
+                          <div className="text-xs text-gray-700 mt-1">
+                            Total: {currency(s.total)}{typeof s.refunded_total !== 'undefined' && (
+                              <> • Refunded: {currency(s.refunded_total)} • Net: {currency(s.net_total)}</>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="text-sm font-semibold">{currency(s.total)}</div>
                           <button
                             onClick={async()=>{
                               try {
@@ -622,7 +631,27 @@ export default function Dashboard() {
                               } catch (e) { setError(e.message) }
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white rounded"
-                          >Download</button>
+                          >Invoice</button>
+                          <button
+                            disabled={s.status === 'voided'}
+                            onClick={async()=>{
+                              const confirmVoid = window.confirm('Void this sale and restock all items? This creates a full refund record.')
+                              if (!confirmVoid) return
+                              try {
+                                const token = session?.access_token
+                                const resp = await fetch('/api/admin/sales/refund', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ sale_id: s.id, full: true, reason: 'Admin void' })
+                                })
+                                const j = await resp.json()
+                                if (!resp.ok || j.error) throw new Error(j.error || `Failed (${resp.status})`)
+                                await loadRecentSales()
+                                await loadItems()
+                              } catch (e) { setError(e.message) }
+                            }}
+                            className={`px-3 py-1 rounded ${s.status === 'voided' ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white'}`}
+                          >Void</button>
                         </div>
                       </div>
                     ))}

@@ -163,6 +163,7 @@ create table if not exists public.sales (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   total numeric(12,2) not null default 0,
+  status text not null default 'completed' check (status in ('completed','voided')),
   created_at timestamptz not null default now()
 );
 
@@ -175,6 +176,44 @@ create table if not exists public.sale_items (
   discount_type text not null default 'none',
   discount_value numeric(10,2) not null default 0
 );
+
+-- Refunds: track refunds per sale and per line
+create table if not exists public.refunds (
+  id uuid primary key default gen_random_uuid(),
+  sale_id uuid not null references public.sales(id) on delete cascade,
+  user_id uuid not null,
+  total numeric(12,2) not null default 0,
+  reason text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.refund_items (
+  id uuid primary key default gen_random_uuid(),
+  refund_id uuid not null references public.refunds(id) on delete cascade,
+  sale_item_id uuid not null references public.sale_items(id) on delete restrict,
+  item_id uuid not null references public.items(id),
+  quantity int not null check (quantity > 0),
+  price_at_purchase numeric(10,2) not null
+);
+
+create index if not exists refund_items_sale_item_id_idx on public.refund_items (sale_item_id);
+create index if not exists refunds_sale_id_idx on public.refunds (sale_id);
+
+-- Optional: enforce that total refunded qty per sale_item does not exceed sold qty
+create or replace function public.validate_refund_qty()
+returns trigger language plpgsql as $$
+declare sold_qty int; refunded_qty int; begin
+  select quantity into sold_qty from public.sale_items where id = new.sale_item_id;
+  if sold_qty is null then raise exception 'sale_item not found'; end if;
+  select coalesce(sum(quantity),0) into refunded_qty from public.refund_items where sale_item_id = new.sale_item_id;
+  if refunded_qty + new.quantity > sold_qty then
+    raise exception 'Refund quantity exceeds sold quantity (sold %, requested %)', sold_qty, refunded_qty + new.quantity;
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists trg_validate_refund_qty on public.refund_items;
+create trigger trg_validate_refund_qty before insert on public.refund_items for each row execute function public.validate_refund_qty();
 
 -- Storage: public bucket for item images
 -- Creates a bucket named 'item-images' (public read) if it doesn't exist,
