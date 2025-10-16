@@ -15,9 +15,10 @@ export default function Dashboard() {
   const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
   const [tab, setTab] = useState('users')
   const [items, setItems] = useState([])
-  const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '' })
+  const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' })
   const [itemFile, setItemFile] = useState(null)
   const [restockQtyMap, setRestockQtyMap] = useState({})
+  const [itemFilters, setItemFilters] = useState({ category_type: '', gold_type: '', karat: '' })
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
@@ -88,7 +89,11 @@ export default function Dashboard() {
     try {
       const token = session?.access_token
       if (!token) return setError('Please login as an admin to load items.')
-      const res = await listItems({ token })
+      const res = await listItems({ token, filters: {
+        category_type: itemFilters.category_type || undefined,
+        gold_type: itemFilters.gold_type || undefined,
+        karat: itemFilters.karat || undefined
+      } })
       if (res.error) setError(res.error)
       else setItems(res.items || [])
     } catch (err) {
@@ -188,7 +193,10 @@ export default function Dashboard() {
         image_url: imageUrl,
         status: itemForm.status,
         discount_type: itemForm.discount_type,
-        discount_value: Number(itemForm.discount_value || 0)
+        discount_value: Number(itemForm.discount_value || 0),
+        category_type: itemForm.category_type || null,
+        gold_type: itemForm.gold_type || null,
+        karat: itemForm.karat || null
       }
       if (itemForm.id) {
         const res = await updateItem({ token }, { id: itemForm.id, ...payload })
@@ -197,7 +205,7 @@ export default function Dashboard() {
         const res = await createItem({ token }, payload)
         if (res.error) return setError(res.error)
       }
-      setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '' })
+  setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' })
       setItemFile(null)
       await loadItems()
     } catch (err) {
@@ -227,8 +235,39 @@ export default function Dashboard() {
         </div>
       )}
       {tab === 'items' && (
-        <div className="bg-white p-4 rounded shadow mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Load items</button>
+        <div className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Type</label>
+            <select className="border p-2 rounded w-full" value={itemFilters.category_type} onChange={(e)=>setItemFilters({ ...itemFilters, category_type: e.target.value })}>
+              <option value="">All</option>
+              <option value="ring">Ring</option>
+              <option value="bracelet">Bracelet</option>
+              <option value="necklace">Necklace</option>
+              <option value="earrings">Earrings</option>
+              <option value="watch">Watch</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Gold type</label>
+            <select className="border p-2 rounded w-full" value={itemFilters.gold_type} onChange={(e)=>setItemFilters({ ...itemFilters, gold_type: e.target.value })}>
+              <option value="">All</option>
+              <option value="italian">Italian</option>
+              <option value="saudi">Saudi</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Karat</label>
+            <select className="border p-2 rounded w-full" value={itemFilters.karat} onChange={(e)=>setItemFilters({ ...itemFilters, karat: e.target.value })}>
+              <option value="">All</option>
+              <option value="10k">10k</option>
+              <option value="14k">14k</option>
+              <option value="18k">18k</option>
+              <option value="21k">21k</option>
+              <option value="24k">24k</option>
+            </select>
+          </div>
+          <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply filters</button>
+          <button onClick={()=>{ setItemFilters({ category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
         </div>
       )}
       {tab === 'sales' && (
@@ -273,7 +312,7 @@ export default function Dashboard() {
       )}
 
       {tab === 'items' && (
-      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-8 gap-3">
+      <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-10 gap-3">
         <input className="border p-2 rounded" placeholder="Item name" value={itemForm.name} onChange={(e)=>setItemForm({ ...itemForm, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Purchase price (₱)" type="number" min="0" step="0.01" value={itemForm.purchase_price} onChange={(e)=>setItemForm({ ...itemForm, purchase_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Sell price (₱)" type="number" min="0" step="0.01" value={itemForm.sell_price} onChange={(e)=>setItemForm({ ...itemForm, sell_price: e.target.value })} />
@@ -293,9 +332,30 @@ export default function Dashboard() {
           </select>
           <input className="border p-2 rounded" placeholder="Discount value" type="number" min="0" step="0.01" value={itemForm.discount_value} onChange={(e)=>setItemForm({ ...itemForm, discount_value: e.target.value })} />
         </div>
+        <select className="border p-2 rounded" value={itemForm.category_type || ''} onChange={(e)=>setItemForm({ ...itemForm, category_type: e.target.value || '' })}>
+          <option value="">Type (optional)</option>
+          <option value="ring">Ring</option>
+          <option value="bracelet">Bracelet</option>
+          <option value="necklace">Necklace</option>
+          <option value="earrings">Earrings</option>
+          <option value="watch">Watch</option>
+        </select>
+        <select className="border p-2 rounded" value={itemForm.gold_type || ''} onChange={(e)=>setItemForm({ ...itemForm, gold_type: e.target.value || '' })}>
+          <option value="">Gold type</option>
+          <option value="italian">Italian</option>
+          <option value="saudi">Saudi</option>
+        </select>
+        <select className="border p-2 rounded" value={itemForm.karat || ''} onChange={(e)=>setItemForm({ ...itemForm, karat: e.target.value || '' })}>
+          <option value="">Karat</option>
+          <option value="10k">10k</option>
+          <option value="14k">14k</option>
+          <option value="18k">18k</option>
+          <option value="21k">21k</option>
+          <option value="24k">24k</option>
+        </select>
         <div className="md:col-span-6 flex gap-2 items-center">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{itemForm.id ? 'Update Item' : 'Create Item'}</button>
-          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '' }); setItemFile(null) }}>Clear</button>
+          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' }); setItemFile(null) }}>Clear</button>
           {(itemForm.image_url || itemFile) && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span>Preview:</span>
@@ -370,12 +430,32 @@ export default function Dashboard() {
                     <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-24 h-24 object-cover rounded" />
                     <div className="flex-1">
                       <div className="font-semibold">{it.name}</div>
+                      {(it.category_type || it.gold_type || it.karat) && (
+                        <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                          {it.category_type && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.category_type}</span>}
+                          {it.gold_type && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.gold_type}</span>}
+                          {it.karat && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.karat}</span>}
+                        </div>
+                      )}
                       <div className="text-sm text-gray-600">Qty: {Number(it.total_quantity||0).toLocaleString()} • Reserved: {Number(it.reserved_quantity||0).toLocaleString()}</div>
                       <div className="text-sm">{currency(it.sell_price)}</div>
                       <div className="mt-2 flex flex-wrap gap-2 items-center">
                         <button
                           className="px-2 py-1 bg-yellow-400 rounded"
-                          onClick={() => setItemForm({ id: it.id, name: it.name || '', purchase_price: it.purchase_price || '', sell_price: it.sell_price || '', total_quantity: it.total_quantity || '', image_url: it.image_url || '' })}
+                          onClick={() => setItemForm({
+                            id: it.id,
+                            name: it.name || '',
+                            purchase_price: it.purchase_price || '',
+                            sell_price: it.sell_price || '',
+                            total_quantity: it.total_quantity || '',
+                            image_url: it.image_url || '',
+                            status: it.status || 'active',
+                            discount_type: it.discount_type || 'none',
+                            discount_value: (it.discount_value ?? ''),
+                            category_type: it.category_type || '',
+                            gold_type: it.gold_type || '',
+                            karat: it.karat || ''
+                          })}
                         >
                           Edit
                         </button>

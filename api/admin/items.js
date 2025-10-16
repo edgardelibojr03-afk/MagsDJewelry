@@ -29,15 +29,20 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'list') {
-      const { data, error } = await admin
+      const { category_type, gold_type, karat } = req.query || {}
+      let query = admin
         .from('items')
-        .select('id,name,purchase_price,sell_price,total_quantity,reserved_quantity,image_url,created_at,status,discount_type,discount_value')
+        .select('id,name,purchase_price,sell_price,total_quantity,reserved_quantity,image_url,created_at,status,discount_type,discount_value,category_type,gold_type,karat')
         .order('created_at', { ascending: false })
+      if (category_type) query = query.eq('category_type', String(category_type))
+      if (gold_type) query = query.eq('gold_type', String(gold_type))
+      if (karat) query = query.eq('karat', String(karat))
+      const { data, error } = await query
       if (error) return res.status(500).json({ error: error.message })
       return res.status(200).json({ items: data })
     }
     if (action === 'create') {
-      const { name, purchase_price, sell_price, total_quantity, image_url, status = 'active', discount_type = 'none', discount_value = 0 } = req.body || {}
+      const { name, purchase_price, sell_price, total_quantity, image_url, status = 'active', discount_type = 'none', discount_value = 0, category_type = null, gold_type = null, karat = null } = req.body || {}
       if (!name) return res.status(400).json({ error: 'Name is required' })
       if (Number(sell_price) < Number(purchase_price)) return res.status(400).json({ error: 'Sell price cannot be less than purchase price' })
       const allowedTypes = ['none','percent','fixed']
@@ -52,14 +57,17 @@ export default async function handler(req, res) {
         image_url: image_url || null,
         status,
         discount_type,
-        discount_value: Number(discount_value || 0)
+        discount_value: Number(discount_value || 0),
+        category_type,
+        gold_type,
+        karat
       }
       const { data, error } = await admin.from('items').insert(payload).select('*').single()
       if (error) return res.status(500).json({ error: error.message })
       return res.status(200).json({ item: data })
     }
     if (action === 'update') {
-      const { id, name, purchase_price, sell_price, total_quantity, image_url, status, discount_type, discount_value } = req.body || {}
+      const { id, name, purchase_price, sell_price, total_quantity, image_url, status, discount_type, discount_value, category_type, gold_type, karat } = req.body || {}
       if (!id) return res.status(400).json({ error: 'id is required' })
       const patch = {}
       if (name !== undefined) patch.name = name
@@ -70,6 +78,9 @@ export default async function handler(req, res) {
       if (status !== undefined) patch.status = status
       if (discount_type !== undefined) patch.discount_type = discount_type
       if (discount_value !== undefined) patch.discount_value = Number(discount_value)
+      if (category_type !== undefined) patch.category_type = category_type
+      if (gold_type !== undefined) patch.gold_type = gold_type
+      if (karat !== undefined) patch.karat = karat
       if (patch.sell_price != null && (patch.purchase_price != null ? patch.purchase_price : undefined) != null) {
         if (Number(patch.sell_price) < Number(patch.purchase_price)) return res.status(400).json({ error: 'Sell price cannot be less than purchase price' })
       }

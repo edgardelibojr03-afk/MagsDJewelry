@@ -5,8 +5,12 @@ function authHeaders(token, json = false) {
   return h
 }
 
-export async function listItems({ token } = {}) {
-  const res = await fetch('/api/admin/items?action=list', { headers: authHeaders(token) })
+export async function listItems({ token, filters } = {}) {
+  const params = new URLSearchParams({ action: 'list' })
+  if (filters?.category_type) params.set('category_type', filters.category_type)
+  if (filters?.gold_type) params.set('gold_type', filters.gold_type)
+  if (filters?.karat) params.set('karat', filters.karat)
+  const res = await fetch(`/api/admin/items?${params.toString()}`, { headers: authHeaders(token) })
   return res.json()
 }
 
