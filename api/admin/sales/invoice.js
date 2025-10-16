@@ -16,9 +16,9 @@ async function authorize(req, admin) {
   return { ok: true, user: u }
 }
 
-function peso(n) {
+function php(n) {
   const v = Number(n || 0)
-  return `₱${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `PHP ${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export default async function handler(req, res) {
@@ -68,8 +68,8 @@ export default async function handler(req, res) {
     // Table headers
     drawText('Item', 50, y, { bold: true })
     drawText('Qty', 300, y, { bold: true })
-    drawText('Unit Price', 360, y, { bold: true })
-    drawText('Line Total', 460, y, { bold: true })
+  drawText('Unit Price', 360, y, { bold: true })
+  drawText('Line Total', 460, y, { bold: true })
     y -= 12
     page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
     y -= 10
@@ -86,16 +86,16 @@ export default async function handler(req, res) {
         y = height - 60
       }
       drawText(name, 50, y)
-      drawText(qty, 300, y)
-      drawText(peso(unit), 360, y)
-      drawText(peso(lineTotal), 460, y)
+  drawText(qty, 300, y)
+  drawText(php(unit), 360, y)
+  drawText(php(lineTotal), 460, y)
       y -= 18
     }
 
     y -= 10
     page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
     y -= 18
-    drawText(`Total: ${peso(total)}`, 460, y, { bold: true })
+  drawText(`Total: ${php(total)}`, 460, y, { bold: true })
 
     const pdfBytes = await pdfDoc.save()
     res.setHeader('Content-Type', 'application/pdf')
