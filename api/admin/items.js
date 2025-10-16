@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       const { category_type, gold_type, karat } = req.query || {}
       let query = admin
         .from('items')
-        .select('id,name,purchase_price,sell_price,total_quantity,reserved_quantity,image_url,created_at,status,discount_type,discount_value,category_type,gold_type,karat')
+        .select('*')
         .order('created_at', { ascending: false })
       if (category_type) query = query.eq('category_type', String(category_type))
       if (gold_type) query = query.eq('gold_type', String(gold_type))
