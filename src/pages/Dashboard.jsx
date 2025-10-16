@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
+  const [lastSaleId, setLastSaleId] = useState('')
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -540,10 +541,36 @@ export default function Dashboard() {
                       alert(`Sale finalized. Total: ₱${Number(json.total||0).toFixed(2)}`)
                       setUserReservations([])
                       setSalesTotal(0)
+                      setLastSaleId(json.sale_id || '')
                     }
                   }}
                   className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
                 >Finalize sale</button>
+                <button
+                  disabled={!lastSaleId}
+                  onClick={async()=>{
+                    try {
+                      const token = session?.access_token
+                      const resp = await fetch(`/api/admin/sales/invoice?sale_id=${encodeURIComponent(lastSaleId)}`, { headers: { Authorization: `Bearer ${token}` } })
+                      if (!resp.ok) {
+                        const j = await resp.json().catch(()=>({}))
+                        throw new Error(j?.error || `Failed to fetch invoice (${resp.status})`)
+                      }
+                      const blob = await resp.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `invoice_${lastSaleId}.pdf`
+                      document.body.appendChild(a)
+                      a.click()
+                      a.remove()
+                      URL.revokeObjectURL(url)
+                    } catch (e) {
+                      setError(e.message)
+                    }
+                  }}
+                  className="ml-2 px-4 py-2 rounded bg-indigo-600 text-white disabled:opacity-50"
+                >Download invoice</button>
               </div>
             </div>
           )}
