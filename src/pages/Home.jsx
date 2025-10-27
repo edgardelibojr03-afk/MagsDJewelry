@@ -30,7 +30,18 @@ export default function Home() {
 
     const scrollByCard = (direction) => {
       const amount = getScrollAmount() * (direction === 'next' ? 1 : -1)
-      track.scrollBy({ left: amount, behavior: 'smooth' })
+      const target = (track.scrollLeft || 0) + amount
+      try {
+        if (typeof track.scrollTo === 'function') {
+          track.scrollTo({ left: target, behavior: 'smooth' })
+        } else if (typeof track.scrollBy === 'function') {
+          track.scrollBy({ left: amount, behavior: 'smooth' })
+        } else {
+          track.scrollLeft = target
+        }
+      } catch {
+        track.scrollLeft = target
+      }
     }
 
     const onPrev = () => scrollByCard('prev')
@@ -197,7 +208,7 @@ export default function Home() {
           <h5>Latest Collection</h5>
           <h2>New Arrivals</h2>
           <div className="collection-carousel" ref={carouselRef}>
-            <button className="carousel-nav prev" aria-label="Previous">‹</button>
+            <button type="button" className="carousel-nav prev" aria-label="Previous">‹</button>
             <div className="carousel-track" tabIndex={0}>
               {(arrivals.length ? arrivals : []).map((it) => (
                 <div className="product-card" key={it.id}>
@@ -212,7 +223,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <button className="carousel-nav next" aria-label="Next">›</button>
+            <button type="button" className="carousel-nav next" aria-label="Next">›</button>
           </div>
           <div className="section-cta">
             <Link to="/products" className="btn btn-primary">Browse More</Link>
