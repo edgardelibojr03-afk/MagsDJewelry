@@ -208,9 +208,9 @@ export default function Home() {
           <h5>Latest Collection</h5>
           <h2>New Arrivals</h2>
           <div className="collection-carousel" ref={carouselRef}>
-            <button type="button" className="carousel-nav prev" aria-label="Previous">‹</button>
+            {/* Nav removed since we only show 3 items */}
             <div className="carousel-track" tabIndex={0}>
-              {(arrivals.length ? arrivals : []).map((it) => (
+              {(arrivals.length ? arrivals.slice(0,3) : []).map((it) => (
                 <div className="product-card" key={it.id}>
                   <div className="product-image">
                     <img src={it.image_url || '/vite.svg'} alt={it.name} />
@@ -223,7 +223,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <button type="button" className="carousel-nav next" aria-label="Next">›</button>
           </div>
           <div className="section-cta">
             <Link to="/products" className="btn btn-primary">Browse More</Link>
