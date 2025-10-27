@@ -1,19 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import './style.css'
 
-// Images from src/assets
-import heroImg from '../assets/banner1.jpg'
-import banner1 from '../assets/banner1.jpg'
-import banner2 from '../assets/banner2.jpg'
-import about1 from '../assets/aboutbanner1.jpg'
-import about2 from '../assets/aboutbanner2.jpg'
-import about3 from '../assets/aboutbanner3.jpg'
+import { supabase } from '../services/supabaseClient'
+import { currency } from '../utils/format'
 
 export default function Home() {
   const carouselRef = useRef(null)
   const heroRef = useRef(null)
   const aboutRef = useRef(null)
+  const [arrivals, setArrivals] = useState([])
 
   // Carousel behavior: nav buttons and keyboard arrows move by one card
   useEffect(() => {
@@ -163,6 +159,20 @@ export default function Home() {
     }
   }, [])
 
+  // Load New Arrivals (recent items)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('items')
+        .select('id,name,sell_price,image_url,created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      if (!cancelled) setArrivals(error ? [] : (data || []))
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <main>
       {/* Hero Section */}
@@ -177,9 +187,7 @@ export default function Home() {
             <h1 className="title">Unveiling Brilliance and Timeless Elegance, Crafted for You.</h1>
             <Link to="/products" className="btn btn-primary">SHOP NOW</Link>
           </div>
-          <div className="hero-image" aria-hidden="true">
-            <img src={heroImg} alt="" />
-          </div>
+          {/* Hero image removed intentionally */}
         </div>
       </section>
 
@@ -191,14 +199,14 @@ export default function Home() {
           <div className="collection-carousel" ref={carouselRef}>
             <button className="carousel-nav prev" aria-label="Previous">‹</button>
             <div className="carousel-track" tabIndex={0}>
-              {[banner1, banner2, about1, about2, about3].map((img, idx) => (
-                <div className="product-card" key={`new-${idx}`}>
+              {(arrivals.length ? arrivals : []).map((it) => (
+                <div className="product-card" key={it.id}>
                   <div className="product-image">
-                    <img src={img} alt={`Product ${idx + 1}`} />
+                    <img src={it.image_url || '/vite.svg'} alt={it.name} />
                   </div>
                   <div className="product-info">
-                    <h3>Product {idx + 1}</h3>
-                    <p className="price">PHP 10,000</p>
+                    <h3>{it.name}</h3>
+                    <p className="price">{currency(it.sell_price)}</p>
                     <Link to="/products" className="btn btn-primary">View</Link>
                   </div>
                 </div>
@@ -218,14 +226,14 @@ export default function Home() {
           <h5>Highlights</h5>
           <h2>Best Sellers</h2>
           <div className="product-grid">
-            {[about1, about2, about3].map((img, idx) => (
-              <div className="product-card" key={`best-${idx}`}>
+            {(arrivals.slice(0,3)).map((it) => (
+              <div className="product-card" key={`best-${it.id}`}>
                 <div className="product-image">
-                  <img src={img} alt={`Product ${idx + 1}`} />
+                  <img src={it.image_url || '/vite.svg'} alt={it.name} />
                 </div>
                 <div className="product-info">
-                  <h3>Product {idx + 1}</h3>
-                  <p className="price">PHP {idx === 1 ? '8,500' : idx === 0 ? '12,000' : '15,000'}</p>
+                  <h3>{it.name}</h3>
+                  <p className="price">{currency(it.sell_price)}</p>
                   <Link to="/products" className="btn btn-primary">View</Link>
                 </div>
               </div>
