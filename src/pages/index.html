@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mag's D. Jewelry</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts -->
+  <!-- Playfair for display, Cormorant Garamond for luxurious body serif, Montserrat for UI -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <!-- background layers (banner images) are controlled by JS -->
+    <div class="hero-bg bg1 visible" aria-hidden="true"></div>
+    <div class="hero-bg bg2" aria-hidden="true"></div>
+    <div class="hero-tint" aria-hidden="true"></div>
+    <div class="container">
+      <div class="hero-content">
+        <h4 class="subtitle">Mag's D. Jewelry</h4>
+        <h1 class="title">Unveiling Brilliance and Timeless Elegance, Crafted for You.</h1>
+        <button class="btn btn-primary">SHOP NOW</button>
+      </div>
+      <div class="hero-image">
+        <img src="placeholder-hero.jpg" alt="" />
+      </div>
+    </div>
+  </section>
+  <!-- Best Seller Collection -->
+  <section class="collection section-dark">
+    <div class="container">
+      <h5>Latest Collection</h5>
+      <h2>New Arrivals</h2>
+      <!-- Carousel: simple horizontal scroll with controls -->
+      <div class="collection-carousel">
+        <button class="carousel-nav prev" aria-label="Previous">‹</button>
+        <div class="carousel-track" tabindex="0">
+          <div class="product-card">
+            <div class="product-image">
+              <img src="placeholder-ring1.jpg" alt="Product 1" />
+            </div>
+            <div class="product-info">
+              <h3>Product 1</h3>
+              <p class="price">₱10,000</p>
+              <button class="btn btn-primary">Add to Cart</button>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-image">
+              <img src="placeholder-ring2.jpg" alt="Product 2" />
+            </div>
+            <div class="product-info">
+              <h3>Product 2</h3>
+              <p class="price">₱10,000</p>
+              <button class="btn btn-primary">Add to Cart</button>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-image">
+              <img src="placeholder-ring3.jpg" alt="Product 3" />
+            </div>
+            <div class="product-info">
+              <h3>Product 3</h3>
+              <p class="price">₱10,000</p>
+              <button class="btn btn-primary">Add to Cart</button>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-image">
+              <img src="placeholder-ring4.jpg" alt="Product 4" />
+            </div>
+            <div class="product-info">
+              <h3>Product 4</h3>
+              <p class="price">₱10,000</p>
+              <button class="btn btn-primary">Add to Cart</button>
+            </div>
+          </div>
+          <!-- Placeholder 5th product -->
+          <div class="product-card">
+            <div class="product-image">
+              <img src="placeholder-ring5.jpg" alt="Product 5" />
+            </div>
+            <div class="product-info">
+              <h3>Product 5</h3>
+              <p class="price">₱12,500</p>
+              <button class="btn btn-primary">Add to Cart</button>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-nav next" aria-label="Next">›</button>
+      </div>
+      <div class="section-cta">
+        <button class="btn btn-primary">Browse More</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Watch Highlights -->
+  <section class="watch section-light">
+    <div class="container">
+      <h5>Highlights</h5>
+      <h2>Best Sellers</h2>
+      <div class="product-grid">
+        <div class="product-card">
+          <div class="product-image">
+            <img src="placeholder-watch1.jpg" alt="Product 1" />
+          </div>
+          <div class="product-info">
+            <h3>Product 1</h3>
+            <p class="price">₱12,000</p>
+            <button class="btn btn-primary">Add to Cart</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-image">
+            <img src="placeholder-watch2.jpg" alt="Product 2" />
+          </div>
+          <div class="product-info">
+            <h3>Product 2</h3>
+            <p class="price">₱8,500</p>
+            <button class="btn btn-primary">Add to Cart</button>
+          </div>
+        </div>
+        <div class="product-card">
+          <div class="product-image">
+            <img src="placeholder-watch3.jpg" alt="Product 3" />
+          </div>
+          <div class="product-info">
+            <h3>Product 3</h3>
+            <p class="price">₱15,000</p>
+            <button class="btn btn-primary">Add to Cart</button>
+          </div>
+        </div>
+      </div>
+      <div class="section-cta">
+        <button class="btn btn-primary">Browse More</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Us (moved here per request) -->
+  <section class="about section-light">
+    <!-- about background layers (rotating banners) -->
+    <div class="about-bg bg1 visible" aria-hidden="true"></div>
+    <div class="about-bg bg2" aria-hidden="true"></div>
+    <div class="about-bg bg3" aria-hidden="true"></div>
+    <div class="about-tint" aria-hidden="true"></div>
+    <div class="container about-inner">
+      <div class="about-image">
+      </div>
+      <div class="about-content">
+        <h5>About Us</h5>
+        <h2>Crafting Memories, One Piece at a Time</h2>
+        <p>At Mag's D. Jewelry, we specialize in handcrafted pieces that blend timeless design with modern sophistication. Each piece is carefully made to celebrate life's special moments.</p>
+        <div class="section-cta">
+          <button class="btn btn-secondary">Learn More</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact / Find Us -->
+  <section class="contact section-dark">
+    <div class="container flex-center">
+      <div class="contact-image">
+
+      </div>
+      <div class="contact-info">
+        <h5>Get In Touch</h5>
+        <h2>Find Us Here</h2>
+        <p>2nd floor, Gaisano Mall Digos, Quezon Ave., Tres De Mayo, Digos City</p>
+        <p>Mon – Sun: 9am – 9pm</p>
+        <p><a href="mailto:jenniferprudente42@yahoo.com.ph" class="email-link">jenniferprudente42@yahoo.com.ph</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Newsletter -->
+  <section class="newsletter section-light">
+    <div class="container">
+      <h2>Subscribe to Our Newsletter</h2>
+      <form class="newsletter-form">
+        <input type="email" placeholder="Enter Your Email Address" required />
+        <button class="btn btn-primary">Subscribe</button>
+      </form>
+    </div>
+  </section>
+
+    <script>
+      // Carousel: click nav or use keyboard arrows to move by one card
+      (function(){
+        const carousel = document.querySelector('.collection-carousel');
+        const track = carousel ? carousel.querySelector('.carousel-track') : null;
+        const prev = carousel ? carousel.querySelector('.prev') : null;
+        const next = carousel ? carousel.querySelector('.next') : null;
+        if (!track) return;
+
+        // helper to compute card scroll distance (card width + gap)
+        function getScrollAmount(){
+          const card = track.querySelector('.product-card');
+          const gap = 24; // matches CSS .carousel-track gap
+          if (!card) return 320;
+          const rect = card.getBoundingClientRect();
+          return Math.round(rect.width + gap);
+        }
+
+        function scrollByCard(direction){
+          const amount = getScrollAmount() * (direction === 'next' ? 1 : -1);
+          track.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+
+        prev && prev.addEventListener('click', ()=> scrollByCard('prev'));
+        next && next.addEventListener('click', ()=> scrollByCard('next'));
+
+        // Keyboard navigation: left/right arrows when track or carousel has focus
+        carousel.setAttribute('role', 'region');
+        carousel.setAttribute('aria-label', 'Latest Collection carousel');
+
+        // small live region for announcements
+        let live = document.createElement('div');
+        live.setAttribute('aria-live', 'polite');
+        live.setAttribute('aria-atomic', 'true');
+        live.style.position = 'absolute';
+        live.style.width = '1px';
+        live.style.height = '1px';
+        live.style.overflow = 'hidden';
+        live.style.clip = 'rect(1px, 1px, 1px, 1px)';
+        carousel.appendChild(live);
+
+        track.addEventListener('keydown', (e)=>{
+          if (e.key === 'ArrowRight'){
+            e.preventDefault();
+            scrollByCard('next');
+            live.textContent = 'Moved to next products';
+          } else if (e.key === 'ArrowLeft'){
+            e.preventDefault();
+            scrollByCard('prev');
+            live.textContent = 'Moved to previous products';
+          }
+        });
+
+        // ensure track is focusable
+        if (!track.hasAttribute('tabindex')) track.setAttribute('tabindex', '0');
+
+        // when focus enters the carousel, ensure keyboard events are captured on track
+        carousel.addEventListener('focusin', ()=> track.focus());
+
+        // resize observer to update scroll amount if card resize occurs
+        if ('ResizeObserver' in window){
+          const ro = new ResizeObserver(()=>{/*noop; getScrollAmount reads live size when needed*/});
+          track.querySelectorAll('.product-card').forEach(c=>ro.observe(c));
+        }
+      })();
+    </script>
+
+    <script>
+      // HERO ROTATOR: alternate banner backgrounds every 5s with pause-on-hover
+      (function(){
+        const hero = document.querySelector('.hero');
+        if (!hero) return;
+        // ensure layer elements exist
+        const bg1 = hero.querySelector('.hero-bg.bg1');
+        const bg2 = hero.querySelector('.hero-bg.bg2');
+        const tint = hero.querySelector('.hero-tint');
+        if (!bg1 || !bg2 || !tint) return;
+
+        // clear any inline background on hero
+        try{ hero.style.background = ''; } catch(e){}
+
+        let current = 1;
+        bg1.classList.add('visible');
+        bg2.classList.remove('visible');
+
+        let paused = false;
+        const swap = ()=>{
+          if (paused) return;
+          if (current === 1){
+            bg1.classList.remove('visible');
+            bg2.classList.add('visible');
+            current = 2;
+          } else {
+            bg2.classList.remove('visible');
+            bg1.classList.add('visible');
+            current = 1;
+          }
+        };
+
+        const interval = setInterval(swap, 5000);
+        hero.addEventListener('mouseenter', ()=> paused = true);
+        hero.addEventListener('mouseleave', ()=> paused = false);
+        hero.addEventListener('focusin', ()=> paused = true);
+        hero.addEventListener('focusout', ()=> paused = false);
+      })();
+    </script>
+
+</body>
+</html>
+
+        <script>
+          // ABOUT ROTATOR: cycle aboutbanner1/2/3 backgrounds every 5s with pause-on-hover
+          (function(){
+            const about = document.querySelector('.about');
+            if (!about) return;
+            const layers = Array.from(about.querySelectorAll('.about-bg'));
+            if (!layers.length) return;
+
+            let current = layers.findIndex(l => l.classList.contains('visible'));
+            if (current === -1) current = 0, layers[0].classList.add('visible');
+
+            let paused = false;
+            const swap = ()=>{
+              if (paused) return;
+              const next = (current + 1) % layers.length;
+              layers[current].classList.remove('visible');
+              layers[next].classList.add('visible');
+              current = next;
+            };
+
+            const iv = setInterval(swap, 5000);
+            about.addEventListener('mouseenter', ()=> paused = true);
+            about.addEventListener('mouseleave', ()=> paused = false);
+            about.addEventListener('focusin', ()=> paused = true);
+            about.addEventListener('focusout', ()=> paused = false);
+          })();
+        </script>

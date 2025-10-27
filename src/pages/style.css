@@ -1,0 +1,680 @@
+/* Reset & Base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Collection carousel styles (appended) what does append even mean right now
+I do not know for sure but I will be vigilant to all and future updates or whatever may be the
+changes to happen within the code*/
+.collection-carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+
+/* Show 3 items in view on desktop: compute width minus gaps (2 * 24px) */
+.collection-carousel .product-card {
+  /* Increase card size so only 3 fit in view.
+    Reserve 88px total for side padding (44px each side) and 2 gaps of 24px (48px) => 136px reserved. */
+  flex: 0 0 calc((100% - 136px) / 3);
+  max-width: calc((100% - 136px) / 3);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+/* Nav buttons: larger, luxurious feel */
+.collection-carousel .carousel-nav.prev,
+.collection-carousel .carousel-nav.next,
+.collection-carousel .prev,
+.collection-carousel .next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.collection-carousel .prev { left: 0; }
+.collection-carousel .next { right: 0; }
+
+/* Far more subtle nav: small circular controls with low-contrast color.
+   Keep accessible focus outline and comfortable hit area via padding. */
+.collection-carousel .carousel-nav.prev,
+.collection-carousel .carousel-nav.next,
+.collection-carousel .prev,
+.collection-carousel .next {
+  background: transparent; /* visually minimal */
+  color: rgba(191,161,122,0.55); /* low-contrast gold */
+  width: 44px; /* small circular control */
+  height: 44px;
+  border-radius: 999px; /* fully circular */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem; /* subtle arrow size */
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.12s ease, background-color 0.12s ease, opacity 0.12s ease;
+  opacity: 0.95;
+  padding: 8px; /* preserves hit area */
+}
+
+.collection-carousel .carousel-nav.prev:hover,
+.collection-carousel .carousel-nav.next:hover,
+.collection-carousel .prev:hover,
+.collection-carousel .next:hover {
+  transform: translateY(-50%) scale(1.02);
+  color: rgba(122,90,54,0.72);
+  box-shadow: none; /* remove heavy shadow */
+  background: rgba(191,161,122,0.02); /* extremely subtle tint */
+  opacity: 1;
+}
+
+.collection-carousel .carousel-nav.prev:focus,
+.collection-carousel .carousel-nav.next:focus,
+.collection-carousel .prev:focus,
+.collection-carousel .next:focus {
+  outline: 3px solid rgba(181,138,88,0.18);
+  outline-offset: 6px;
+}
+
+.collection h5 { font-size: 1.6rem; }
+
+/* Match Highlights (watch) typography to Latest Collection */
+.watch h5 { font-size: 1.6rem; }
+.watch h2 { font-size: 2rem; }
+
+/* scroll snap and track tweaks */
+.collection-carousel .carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  gap: 24px;
+  /* add side padding equal to nav button width (44px); nav buttons sit over this padding
+    so visually there's no blank gap between buttons and cards. */
+  padding: 0 44px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+/* Center the carousel track within the page container so the visible cards feel centered.
+   Use max-width equal to container width and center via margin auto; the track remains horizontally scrollable. */
+.collection .container > .collection-carousel {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.collection-carousel .carousel-track {
+  width: 100%;
+  max-width: 1200px; /* cap the visible area so cards size predictably on large screens */
+  margin: 0 auto;
+}
+
+
+/* hide scrollbar in Webkit */
+.collection-carousel .carousel-track::-webkit-scrollbar { display: none; }
+
+body {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif;
+  color: #222222;
+  background-color: #F9F7F5;
+  line-height: 1.65;
+  font-size: 16px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-light {
+  background-color: #F9F7F5;
+  color: #222222;
+}
+
+.section-dark {
+  background-color: #FFFFFF;
+  color: #222222;
+}
+
+/* Hero */
+.hero {
+  padding: 120px 20px; /* 50% bigger */
+  position: relative;
+  /* base color while backgrounds load */
+  background-color: #F7F3EE;
+  color: #1f1f1f;
+}
+
+.hero .container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-content {
+  flex: 1 1 600px;
+  max-width: 900px; /* 50% bigger */
+}
+
+
+.hero-content .subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.425rem; /* 50% bigger */
+  color: rgba(18,18,18,0.96);
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.hero-content .title {
+  font-family: 'Playfair Display', serif;
+  font-size: 4.8rem; /* 50% bigger */
+  margin-bottom: 27px;
+  line-height: 1.12;
+  letter-spacing: 0.6px;
+  font-weight: 800;
+  color: #0f0f0f; /* stronger dark title for contrast */
+}
+
+/* Headings */
+h1, h2, h3 {
+  font-family: 'Playfair Display', serif;
+  color: #1f1f1f;
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+h2 {
+  font-size: 2rem;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+/* Button base for consistent, sharper buttons */
+.btn {
+  display: inline-block;
+  font-size: 1rem;
+  padding: 12px 28px;
+  border-radius: 4px; /* sharper corners */
+  cursor: pointer;
+  text-align: center;
+  line-height: 1;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease, box-shadow 0.12s ease;
+  border: 1px solid transparent;
+  will-change: transform;
+}
+
+/* Primary button */
+.btn-primary {
+  background-color: #BFA17A;
+  color: #ffffff;
+  border-color: rgba(0,0,0,0.06);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.btn-primary:hover {
+  background-color: #A5895E;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06) inset;
+}
+
+.btn-primary:focus-visible {
+  outline: 3px solid rgba(181,138,88,0.18);
+  outline-offset: 2px;
+}
+
+.hero-image {
+  flex: 1 1 400px;
+  text-align: center;
+}
+
+.hero-image img {
+  width: 100%;
+  max-width: 750px; /* 50% bigger */
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* Hero background layer elements (absolute, full-bleed) */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 900ms ease-in-out;
+  z-index: 0;
+}
+.hero-bg.visible {
+  opacity: 1;
+}
+.hero-bg.bg1 { background-image: url("banner1.jpg"); }
+.hero-bg.bg2 { background-image: url("banner2.jpg"); }
+
+/* smoky brown tint overlay (keeps images lighter and tint consistent) */
+.hero-tint {
+  position: absolute;
+  inset: 0;
+  /* stronger smoky brown overlay + soft left light for text readability */
+  /* bottom layer: subtle overall darkening, top layer: left-to-right warm light gradient */
+  /* widen the light area so text has a broader readable field; delay smoky overlay for a gentler transition */
+  background:
+    linear-gradient(90deg, rgba(255,250,240,0.96) 0%, rgba(255,250,240,0.88) 25%, rgba(255,250,240,0.70) 45%, rgba(210,180,150,0.20) 60%, rgba(210,180,150,0.0) 66%),
+    linear-gradient(90deg, rgba(80,50,30,0.64) 66%, rgba(95,65,35,0.72) 80%, rgba(120,85,50,0.88) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* bring content above the background layers */
+.hero > .container { position: relative; z-index: 2; }
+
+/* Sections & Grids */
+.section-light, .section-dark {
+  padding: 60px 0;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.product-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E0D8D2;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+}
+
+.product-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.product-info {
+  padding: 20px;
+}
+
+.product-info h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  margin-bottom: 10px;
+  color: #222222;
+}
+
+.product-info .price {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #666666;
+  margin-bottom: 15px;
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background-color: transparent;
+  color: #222222;
+  border: 1px solid #222222;
+  padding: 12px 28px;
+  border-radius: 4px;
+}
+
+/* Make the Learn More button in the About section a solid gold button */
+.about .section-cta .btn-secondary {
+  background-color: #BFA17A;
+  color: #ffffff;
+  border-color: rgba(0,0,0,0.06);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+.about .section-cta .btn-secondary:hover {
+  background-color: #A5895E;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10);
+}
+.about .section-cta .btn-secondary:focus-visible {
+  outline: 3px solid rgba(181,138,88,0.18);
+  outline-offset: 2px;
+}
+
+.btn-secondary:hover {
+  background-color: #222222;
+  color: #F9F7F5;
+  transform: translateY(-2px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary:focus-visible {
+  outline: 3px solid rgba(34,34,34,0.12);
+  outline-offset: 2px;
+}
+
+/* About Images */
+/* About section: larger, more prominent */
+.about {
+  padding: 165px 0; /* 50% bigger */
+}
+
+.about .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+}
+
+.about .about-text {
+  flex: 1 1 780px;
+  max-width: 1080px; /* 50% bigger */
+}
+
+.about .about-text h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2rem; /* slightly reduced for better hierarchy */
+  line-height: 1.06;
+  margin-bottom: 27px;
+  color: #1f1f1f;
+}
+
+.about .about-text h5 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.05rem; /* slightly larger label */
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-bottom: 8px;
+}
+
+.about .about-text p {
+  font-size: 1.575rem; /* 50% bigger */
+  color: #545454;
+  line-height: 1.7;
+  margin-bottom: 33px;
+}
+
+.about .about-text .btn {
+  margin-top: 6px;
+}
+
+.about .about-images {
+  flex: 1 1 420px;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+}
+
+.about .about-images img {
+  width: 100%;
+  max-width: 570px; /* 50% bigger */
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  object-fit: cover;
+}
+
+/* Slightly different background for emphasis (keeps light aesthetic) */
+.about.section-light {
+  /* fall back color while images load */
+  background-color: #F3EFEA; /* slightly darker than page background for contrast */
+  color: #111111;
+  position: relative; /* establish stacking context for background layers */
+  overflow: hidden;
+}
+
+/* About background layers (absolute full-bleed, cross-fade via opacity) */
+.about-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 900ms ease-in-out;
+  z-index: 0;
+}
+.about-bg.visible { opacity: 1; }
+.about-bg.bg1 { background-image: url("aboutbanner1.jpg"); }
+.about-bg.bg2 { background-image: url("aboutbanner2.jpg"); }
+.about-bg.bg3 { background-image: url("aboutbanner3.jpg"); }
+
+/* about tint: layered gradient to match hero tint for consistent contrast */
+.about-tint {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,250,240,0.96) 0%, rgba(255,250,240,0.88) 25%, rgba(255,250,240,0.70) 45%, rgba(210,180,150,0.20) 60%, rgba(210,180,150,0.0) 66%),
+    linear-gradient(90deg, rgba(80,50,30,0.64) 66%, rgba(95,65,35,0.72) 80%, rgba(120,85,50,0.88) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ensure content inside About sits above the background layers */
+.about > .container { position: relative; z-index: 2; }
+
+/* About layout tweaks: left-align text on desktop and move CTA to the right.
+   Mobile styles keep previous centered behavior via media query overrides. */
+.about .about-content,
+.about .about-text {
+  text-align: left;
+}
+.about .section-cta {
+  justify-content: flex-end;
+}
+
+/* Column widths: text occupies left column (~58%), image sits in right column (~38%) on desktop */
+.about .about-content,
+.about .about-text {
+  flex: 0 0 58%;
+  max-width: 58%;
+}
+.about .about-image,
+.about .about-images {
+  flex: 0 0 38%;
+  max-width: 38%;
+}
+
+/* Ensure the textual content is visually on the left and image on the right (desktop).
+   HTML may place the image first; use flex order to enforce layout without changing markup. */
+.about .about-image { order: 2; }
+.about .about-content { order: 1; }
+
+/* Contact */
+.contact {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-image, .contact-info {
+  flex: 1 1 400px;
+  margin: 20px;
+}
+
+.contact-image img {
+  width: 100%;
+  max-width: 500px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.contact-info h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.contact-info p {
+  font-size: 1rem;
+  color: #555555;
+  line-height: 1.5;
+}
+
+.email-link {
+  color: #BFA17A;
+  transition: color 0.3s;
+}
+
+.email-link:hover {
+  color: #A5895E;
+}
+
+/* Newsletter */
+.newsletter-form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+/* Newsletter heading: slightly smaller and centered */
+.newsletter h2 {
+  font-size: 1.6rem;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.newsletter .container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.newsletter-form input[type="email"] {
+  padding: 12px 20px;
+  border: 1px solid #E0D8D2;
+  border-radius: 5px;
+  width: 300px;
+  font-size: 1rem;
+}
+
+.newsletter-form .btn-primary {
+  padding: 14px 30px;
+}
+
+/* Section-level CTA wrapper */
+.section-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+.section-cta .btn {
+  min-width: 220px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero .container {
+    flex-direction: column-reverse;
+    text-align: center;
+  }
+  .hero-content {
+    max-width: 100%;
+  }
+  .product-grid {
+    gap: 20px;
+  }
+  /* About stacking on small screens */
+  .about .container {
+    flex-direction: column;
+    text-align: center;
+  }
+  .about .about-text {
+    max-width: 100%;
+  }
+  .about .about-images {
+    flex-direction: row;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .about .about-images img {
+    max-width: 48%;
+  }
+  /* Scale down hero and about on mobile to maintain usability */
+  .hero {
+    padding: 80px 12px;
+  }
+  .hero-content .title {
+    font-size: 2.8rem;
+  }
+  .hero-content .subtitle {
+    font-size: 0.95rem;
+  }
+  .hero-image img {
+    max-width: 500px;
+  }
+  .about {
+    padding: 110px 0;
+  }
+  .about .about-text h2 {
+    font-size: 2.6rem;
+  }
+  .about .about-text p {
+    font-size: 1.05rem;
+  }
+  .about .about-images img {
+    max-width: 300px;
+  }
+  /* Mobile: keep About text centered and CTA centered for better stacking */
+  .about .about-content,
+  .about .about-text {
+    text-align: center;
+  }
+  .about .section-cta {
+    justify-content: center;
+  }
+  /* Scale carousel nav buttons down on small screens so they don't overlap cards */
+  .collection-carousel .carousel-nav.prev,
+  .collection-carousel .carousel-nav.next,
+  .collection-carousel .prev,
+  .collection-carousel .next {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+    left: 6px; /* bring closer on mobile */
+    right: 6px;
+  }
+  /* Reduce track side padding to match mobile nav size (40px) and adjust product widths */
+  .collection-carousel .carousel-track {
+    padding: 0 40px;
+  }
+  .collection-carousel .product-card {
+  /* mobile: larger product cards so fewer are visible (approx 1-2 per view) */
+  flex: 0 0 calc((100% - 120px) / 2);
+  max-width: calc((100% - 120px) / 2);
+  }
+}
