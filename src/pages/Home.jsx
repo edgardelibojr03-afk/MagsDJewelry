@@ -3,15 +3,12 @@ import { Link } from 'react-router-dom'
 import './style.css'
 
 // Images from src/assets
-import heroImg from '../assets/placeholder-hero.jpg'
-import ring1 from '../assets/placeholder-ring1.jpg'
-import ring2 from '../assets/placeholder-ring2.jpg'
-import ring3 from '../assets/placeholder-ring3.jpg'
-import ring4 from '../assets/placeholder-ring4.jpg'
-import ring5 from '../assets/placeholder-ring5.jpg'
-import watch1 from '../assets/placeholder-watch1.jpg'
-import watch2 from '../assets/placeholder-watch2.jpg'
-import watch3 from '../assets/placeholder-watch3.jpg'
+import heroImg from '../assets/banner1.jpg'
+import banner1 from '../assets/banner1.jpg'
+import banner2 from '../assets/banner2.jpg'
+import about1 from '../assets/aboutbanner1.jpg'
+import about2 from '../assets/aboutbanner2.jpg'
+import about3 from '../assets/aboutbanner3.jpg'
 
 export default function Home() {
   const carouselRef = useRef(null)
@@ -194,7 +191,7 @@ export default function Home() {
           <div className="collection-carousel" ref={carouselRef}>
             <button className="carousel-nav prev" aria-label="Previous">‹</button>
             <div className="carousel-track" tabIndex={0}>
-              {[ring1, ring2, ring3, ring4, ring5].map((img, idx) => (
+              {[banner1, banner2, about1, about2, about3].map((img, idx) => (
                 <div className="product-card" key={`new-${idx}`}>
                   <div className="product-image">
                     <img src={img} alt={`Product ${idx + 1}`} />
@@ -221,7 +218,7 @@ export default function Home() {
           <h5>Highlights</h5>
           <h2>Best Sellers</h2>
           <div className="product-grid">
-            {[watch1, watch2, watch3].map((img, idx) => (
+            {[about1, about2, about3].map((img, idx) => (
               <div className="product-card" key={`best-${idx}`}>
                 <div className="product-image">
                   <img src={img} alt={`Product ${idx + 1}`} />
