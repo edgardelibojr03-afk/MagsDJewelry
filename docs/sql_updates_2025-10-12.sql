@@ -14,6 +14,8 @@ create table if not exists public.items (
   total_quantity int not null default 0 check (total_quantity >= 0),
   reserved_quantity int not null default 0 check (reserved_quantity >= 0),
   image_url text,
+  description text,
+  restock_threshold int,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -126,6 +128,8 @@ alter table public.items add column if not exists karat text check (karat in ('1
 create index if not exists items_category_type_idx on public.items (category_type);
 create index if not exists items_gold_type_idx on public.items (gold_type);
 create index if not exists items_karat_idx on public.items (karat);
+alter table public.items add column if not exists description text;
+alter table public.items add column if not exists restock_threshold int;
 
 -- Enforce sell >= purchase at DB level
 -- 1) Inspect violations (run to see problem rows):
@@ -164,6 +168,12 @@ create table if not exists public.sales (
   user_id uuid not null,
   total numeric(12,2) not null default 0,
   status text not null default 'completed' check (status in ('completed','voided')),
+  admin_user_id uuid,
+  payment_method text default 'full' check (payment_method in ('full','layaway')),
+  layaway_months int,
+  downpayment numeric(12,2) default 0,
+  amount_receivable numeric(12,2) default 0,
+  monthly_payment numeric(12,2) default 0,
   created_at timestamptz not null default now()
 );
 
@@ -239,3 +249,21 @@ create policy "Authenticated upload item-images"
 
 -- Note: We intentionally do NOT allow update/delete to avoid accidental removals.
 -- Admin-only maintenance can be done via server-side service role if needed later.
+
+-- Reviews: basic product reviews with RLS
+create table if not exists public.product_reviews (
+  id uuid primary key default gen_random_uuid(),
+  item_id uuid not null references public.items(id) on delete cascade,
+  user_id uuid not null,
+  rating int not null check (rating between 1 and 5),
+  comment text,
+  created_at timestamptz not null default now()
+);
+alter table public.product_reviews enable row level security;
+drop policy if exists "Public read reviews" on public.product_reviews;
+create policy "Public read reviews" on public.product_reviews for select to anon, authenticated using (true);
+drop policy if exists "User insert own reviews" on public.product_reviews;
+create policy "User insert own reviews" on public.product_reviews for insert to authenticated with check (user_id = auth.uid());
+create index if not exists product_reviews_item_id_idx on public.product_reviews(item_id);
+
+-- Note: To support queue-style reservations, reserved_quantity may briefly exceed total_quantity.

@@ -28,8 +28,11 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    // Fetch sales with status; compute net_total = total - sum(refunds.total)
-    const { data: sales, error } = await admin.from('sales').select('*').order('created_at', { ascending: false }).limit(100)
+    // Optional filter by user_id
+    const user_id = req.query?.user_id
+    let q = admin.from('sales').select('*').order('created_at', { ascending: false }).limit(100)
+    if (user_id) q = q.eq('user_id', user_id)
+    const { data: sales, error } = await q
     if (error) return res.status(500).json({ error: error.message })
     const ids = (sales || []).map((s) => s.id)
     let refundMap = {}

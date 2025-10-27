@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   const authz = await authorize(req, admin)
   if (!authz.ok) return res.status(authz.status || 401).json({ error: authz.error || 'Unauthorized' })
 
-  const { user_id } = req.body || {}
+  const { user_id, payment_method, layaway_months } = req.body || {}
   if (!user_id) return res.status(400).json({ error: 'user_id required' })
 
   try {
@@ -36,9 +36,10 @@ export default async function handler(req, res) {
       .eq('user_id', user_id)
     if (error) return res.status(500).json({ error: error.message })
     let total = 0
-    // create sale header first
-    const { data: sale, error: saleErr } = await admin.from('sales').insert({ user_id }).select('*').single()
+    // create sale header first (record admin)
+    const { data: sale, error: saleErr } = await admin.from('sales').insert({ user_id, admin_user_id: authz.user.id }).select('*').single()
     if (saleErr) return res.status(500).json({ error: saleErr.message })
+    const soldItemIds = new Set()
     for (const r of rows) {
       const q = r.quantity || 0
       const price = r.item?.sell_price || 0
@@ -48,9 +49,27 @@ export default async function handler(req, res) {
       await admin.from('items').update({ total_quantity: newTotalQty, reserved_quantity: newReserved }).eq('id', r.item_id)
       // record line detail with price at purchase
       await admin.from('sale_items').insert({ sale_id: sale.id, item_id: r.item_id, quantity: q, price_at_purchase: price })
+      soldItemIds.add(r.item_id)
     }
     await admin.from('reservations').delete().eq('user_id', user_id)
-    await admin.from('sales').update({ total }).eq('id', sale.id)
+    // Remove other queued reservations for items that were sold
+    if (soldItemIds.size > 0) {
+      const ids = Array.from(soldItemIds)
+      await admin.from('reservations').delete().in('item_id', ids)
+    }
+    // Handle payment/layaway details
+    let patch = { total }
+    const pm = (payment_method || 'full').toLowerCase()
+    if (pm === 'layaway') {
+      const months = Math.max(6, Number(layaway_months || 6))
+      const down = Number((total * 0.05).toFixed(2))
+      const receivable = Number((total - down).toFixed(2))
+      const monthly = Number((receivable / months).toFixed(2))
+      patch = { ...patch, payment_method: 'layaway', layaway_months: months, downpayment: down, amount_receivable: receivable, monthly_payment: monthly }
+    } else {
+      patch = { ...patch, payment_method: 'full', layaway_months: null, downpayment: 0, amount_receivable: 0, monthly_payment: 0 }
+    }
+    await admin.from('sales').update(patch).eq('id', sale.id)
 
     // TODO: Send simple email receipt via an email provider (e.g., Resend, SendGrid). Placeholder response for now.
   return res.status(200).json({ ok: true, total, sale_id: sale.id })

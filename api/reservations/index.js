@@ -22,6 +22,25 @@ export default async function handler(req, res) {
   if (!authz.ok) return res.status(authz.status || 401).json({ error: authz.error })
   const user = authz.user
 
+  // Cleanup: auto-cancel expired reservations for this user and restock reserved counts
+  try {
+    const { data: expired } = await admin
+      .from('reservations')
+      .select('id,item_id,quantity')
+      .eq('user_id', user.id)
+      .lt('expires_at', new Date().toISOString())
+    if (expired && expired.length) {
+      for (const r of expired) {
+        // reduce reserved_quantity, not below 0
+        const { data: itemRow } = await admin.from('items').select('reserved_quantity').eq('id', r.item_id).single()
+        const newReserved = Math.max(0, Number(itemRow?.reserved_quantity || 0) - Number(r.quantity || 0))
+        await admin.from('items').update({ reserved_quantity: newReserved }).eq('id', r.item_id)
+      }
+      const ids = expired.map((r) => r.id)
+      await admin.from('reservations').delete().in('id', ids)
+    }
+  } catch {}
+
   const action = (req.method === 'GET' ? (req.query?.action || 'list') : (req.body?.action || '')).toLowerCase()
 
   try {
@@ -39,8 +58,7 @@ export default async function handler(req, res) {
       if (!item_id || !Number.isInteger(delta)) return res.status(400).json({ error: 'item_id and integer delta required' })
       const { data: item, error: itemErr } = await admin.from('items').select('*').eq('id', item_id).single()
       if (itemErr || !item) return res.status(404).json({ error: 'Item not found' })
-      const available = (item.total_quantity || 0) - (item.reserved_quantity || 0)
-      if (delta > 0 && delta > available) return res.status(400).json({ error: 'Not enough stock to reserve' })
+      // Queue semantics: allow reservation even if currently fully reserved (no hard fail)
       const { data: existing } = await admin.from('reservations').select('*').eq('user_id', user.id).eq('item_id', item_id).maybeSingle()
       const newQty = Math.max(0, (existing?.quantity || 0) + delta)
       if (!existing && newQty === 0) return res.status(200).json({ ok: true, quantity: 0 })
@@ -57,9 +75,10 @@ export default async function handler(req, res) {
       }
       const reservedDelta = newQty - (existing?.quantity || 0)
       if (reservedDelta !== 0) {
+        // Try to adjust reserved count; if exceeds current stock, fall back to direct update (queue beyond stock)
         const { error: itemUpdErr } = await admin.rpc('increment_reserved_quantity', { p_item_id: item_id, p_delta: reservedDelta })
         if (itemUpdErr) {
-          const newReserved = Math.max(0, (item.reserved_quantity || 0) + reservedDelta)
+          const newReserved = Math.max(0, Number(item.reserved_quantity || 0) + Number(reservedDelta))
           const { error: fallbackErr } = await admin.from('items').update({ reserved_quantity: newReserved }).eq('id', item_id)
           if (fallbackErr) return res.status(500).json({ error: fallbackErr.message })
         }

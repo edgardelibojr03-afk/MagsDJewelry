@@ -43,6 +43,23 @@ export default async function handler(req, res) {
     if (action === 'reservations') {
       const { user_id } = (req.method === 'GET' ? req.query : req.body) || {}
       if (!user_id) return res.status(400).json({ error: 'user_id is required' })
+      // Cleanup expired reservations for this user
+      try {
+        const { data: expired } = await admin
+          .from('reservations')
+          .select('id,item_id,quantity')
+          .eq('user_id', user_id)
+          .lt('expires_at', new Date().toISOString())
+        if (expired && expired.length) {
+          for (const r of expired) {
+            const { data: itemRow } = await admin.from('items').select('reserved_quantity').eq('id', r.item_id).single()
+            const newReserved = Math.max(0, Number(itemRow?.reserved_quantity || 0) - Number(r.quantity || 0))
+            await admin.from('items').update({ reserved_quantity: newReserved }).eq('id', r.item_id)
+          }
+          const ids = expired.map((r) => r.id)
+          await admin.from('reservations').delete().in('id', ids)
+        }
+      } catch {}
       const { data, error } = await admin
         .from('reservations')
         .select(`

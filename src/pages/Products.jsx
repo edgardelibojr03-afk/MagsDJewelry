@@ -10,24 +10,29 @@ export default function Products() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [qtyById, setQtyById] = useState({})
+  const [filters, setFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
 
   const load = async () => {
     setLoading(true)
     setError('')
     try {
       // Public read via Supabase client (RLS allows select for anon)
-      const { data, error: err } = await supabase
+      let q = supabase
         .from('items')
-        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url')
+        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url, category_type, gold_type, karat')
         .order('created_at', { ascending: false })
+      if (filters.q) q = q.ilike('name', `%${filters.q}%`)
+      if (filters.category_type) q = q.eq('category_type', filters.category_type)
+      if (filters.gold_type) q = q.eq('gold_type', filters.gold_type)
+      if (filters.karat) q = q.eq('karat', filters.karat)
+      const { data, error: err } = await q
       if (err) setError(err.message)
       else {
         setItems(data || [])
         // Initialize counters per item
         const q = {}
         for (const it of data || []) {
-          const available = (it.total_quantity || 0) - (it.reserved_quantity || 0)
-          q[it.id] = available > 0 ? 1 : 0
+          q[it.id] = 1
         }
         setQtyById(q)
       }
@@ -54,6 +59,44 @@ export default function Products() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Products</h1>
+      <div className="bg-white p-4 rounded shadow mb-4 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-gray-600 mb-1">Search</label>
+          <input className="border p-2 rounded w-full" placeholder="Search name..." value={filters.q} onChange={(e)=>setFilters({ ...filters, q: e.target.value })} />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Type</label>
+          <select className="border p-2 rounded w-full" value={filters.category_type} onChange={(e)=>setFilters({ ...filters, category_type: e.target.value })}>
+            <option value="">All</option>
+            <option value="ring">Ring</option>
+            <option value="bracelet">Bracelet</option>
+            <option value="necklace">Necklace</option>
+            <option value="earrings">Earrings</option>
+            <option value="watch">Watch</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Gold type</label>
+          <select className="border p-2 rounded w-full" value={filters.gold_type} onChange={(e)=>setFilters({ ...filters, gold_type: e.target.value })}>
+            <option value="">All</option>
+            <option value="italian">Italian</option>
+            <option value="saudi">Saudi</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-600 mb-1">Karat</label>
+          <select className="border p-2 rounded w-full" value={filters.karat} onChange={(e)=>setFilters({ ...filters, karat: e.target.value })}>
+            <option value="">All</option>
+            <option value="10k">10k</option>
+            <option value="14k">14k</option>
+            <option value="18k">18k</option>
+            <option value="21k">21k</option>
+            <option value="24k">24k</option>
+          </select>
+        </div>
+        <button onClick={load} className="px-4 py-2 rounded bg-black text-white">Apply</button>
+        <button onClick={()=>{ setFilters({ q:'', category_type:'', gold_type:'', karat:'' }); load() }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
+      </div>
       {error && <p className="text-red-600 mb-4">{error}</p>}
       {loading ? (
         <p>Loading...</p>
@@ -61,19 +104,18 @@ export default function Products() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((it) => {
             const available = (it.total_quantity || 0) - (it.reserved_quantity || 0)
-            const soldOut = available <= 0
+            const queued = available <= 0
             return (
               <div key={it.id} className="bg-white rounded shadow overflow-hidden">
-                <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-full h-48 object-cover" />
+                <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-full h-56 object-cover" />
                 <div className="p-4">
                   <div className="font-semibold text-lg">{it.name}</div>
-                  <div className="text-sm text-gray-600">Available: {available}</div>
+                  <div className="text-sm text-gray-600">{queued ? 'Queued reservations allowed' : `Available: ${available}`}</div>
                   <div className="text-sm">Price: {currency(it.sell_price || 0)}</div>
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
                       onClick={() => setQtyById((m) => ({ ...m, [it.id]: Math.max(1, (Number(m[it.id]) || 1) - 1) }))}
-                      disabled={soldOut}
                       aria-label="Decrease quantity"
                     >
                       −
@@ -81,18 +123,16 @@ export default function Products() {
                     <input
                       type="number"
                       min={1}
-                      max={Math.max(1, available)}
                       className="w-16 text-center border rounded py-1"
                       value={qtyById[it.id] || 1}
                       onChange={(e) => {
-                        const v = Math.min(Math.max(1, Number(e.target.value || 1)), Math.max(1, available))
+                        const v = Math.max(1, Number(e.target.value || 1))
                         setQtyById((m) => ({ ...m, [it.id]: v }))
                       }}
                     />
                     <button
                       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: Math.min(Math.max(1, available), (Number(m[it.id]) || 1) + 1) }))}
-                      disabled={soldOut}
+                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: (Number(m[it.id]) || 1) + 1 }))}
                       aria-label="Increase quantity"
                     >
                       +
@@ -100,12 +140,12 @@ export default function Products() {
                     <button
                       className="px-3 py-1 bg-black text-white rounded disabled:opacity-50"
                       onClick={() => onReserve(it.id)}
-                      disabled={soldOut || (qtyById[it.id] || 0) <= 0}
+                      disabled={(qtyById[it.id] || 0) <= 0}
                     >
-                      Reserve
+                      {queued ? 'Queue Reserve' : 'Reserve'}
                     </button>
                   </div>
-                  {soldOut && <div className="mt-2 text-red-600 text-sm">Fully reserved</div>}
+                  {queued && <div className="mt-2 text-amber-600 text-sm">Currently fully reserved — you will be in queue.</div>}
                 </div>
               </div>
             )

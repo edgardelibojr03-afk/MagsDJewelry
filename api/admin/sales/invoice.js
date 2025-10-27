@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   if (!sale_id) return res.status(400).json({ error: 'sale_id is required' })
 
   try {
-    const { data: sale, error: sErr } = await admin.from('sales').select('*').eq('id', sale_id).single()
+  const { data: sale, error: sErr } = await admin.from('sales').select('*').eq('id', sale_id).single()
     if (sErr || !sale) return res.status(404).json({ error: 'Sale not found' })
     const { data: lines, error: lErr } = await admin
       .from('sale_items')
@@ -46,9 +46,16 @@ export default async function handler(req, res) {
       .eq('sale_id', sale_id)
     if (lErr) return res.status(500).json({ error: lErr.message })
 
-    // Fetch customer info
+    // Fetch customer info and admin (finalized by)
     let customerEmail = ''
     let customerName = ''
+    let adminEmail = ''
+    try {
+      if (sale.admin_user_id) {
+        const { data: adminUserRes } = await admin.auth.admin.getUserById(sale.admin_user_id)
+        adminEmail = adminUserRes?.user?.email || ''
+      }
+    } catch {}
     try {
       const { data: ures } = await admin.auth.admin.getUserById(sale.user_id)
       const usr = ures?.user
@@ -106,6 +113,20 @@ export default async function handler(req, res) {
     const cust = customerName || customerEmail || sale.user_id
     drawText(`Customer: ${cust}`, margin, y)
     y -= 24
+    if (adminEmail) {
+      drawText(`Finalized by: ${adminEmail}`, margin, y)
+      y -= 16
+    }
+    if (sale.payment_method === 'layaway') {
+      drawText(`Payment: Layaway`, margin, y)
+      y -= 16
+      drawText(`Downpayment (5%): ${php(sale.downpayment || 0)}`, margin, y)
+      y -= 16
+      drawText(`Amount receivable: ${php(sale.amount_receivable || 0)}`, margin, y)
+      y -= 16
+      drawText(`Months: ${sale.layaway_months} • Monthly: ${php(sale.monthly_payment || 0)}`, margin, y)
+      y -= 16
+    }
 
     // Table headers
     const colItem = margin

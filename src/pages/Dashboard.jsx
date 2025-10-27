@@ -15,15 +15,18 @@ export default function Dashboard() {
   const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
   const [tab, setTab] = useState('users')
   const [items, setItems] = useState([])
-  const [itemForm, setItemForm] = useState({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' })
+  const [itemForm, setItemForm] = useState({ id: '', name: '', description: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '', restock_threshold: '' })
   const [itemFile, setItemFile] = useState(null)
   const [restockQtyMap, setRestockQtyMap] = useState({})
-  const [itemFilters, setItemFilters] = useState({ category_type: '', gold_type: '', karat: '' })
+  const [itemFilters, setItemFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
+  const [lowStock, setLowStock] = useState([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
   const [lastSaleId, setLastSaleId] = useState('')
   const [recentSales, setRecentSales] = useState([])
+  const [paymentMethod, setPaymentMethod] = useState('full')
+  const [layawayMonths, setLayawayMonths] = useState(6)
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -95,12 +98,18 @@ export default function Dashboard() {
       const token = session?.access_token
       if (!token) return setError('Please login as an admin to load items.')
       const res = await listItems({ token, filters: {
+        q: itemFilters.q || undefined,
         category_type: itemFilters.category_type || undefined,
         gold_type: itemFilters.gold_type || undefined,
         karat: itemFilters.karat || undefined
       } })
       if (res.error) setError(res.error)
-      else setItems(res.items || [])
+      else {
+        const arr = res.items || []
+        setItems(arr)
+        const lows = arr.filter((it)=> it.restock_threshold != null && Number(it.total_quantity||0) <= Number(it.restock_threshold||0))
+        setLowStock(lows)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -205,6 +214,7 @@ export default function Dashboard() {
       }
       const payload = {
         name: itemForm.name,
+        description: itemForm.description || null,
         purchase_price: Number(itemForm.purchase_price || 0),
         sell_price: Number(itemForm.sell_price || 0),
         total_quantity: Number(itemForm.total_quantity || 0),
@@ -214,7 +224,8 @@ export default function Dashboard() {
         discount_value: Number(itemForm.discount_value || 0),
         category_type: itemForm.category_type || null,
         gold_type: itemForm.gold_type || null,
-        karat: itemForm.karat || null
+        karat: itemForm.karat || null,
+        restock_threshold: itemForm.restock_threshold === '' ? null : Number(itemForm.restock_threshold)
       }
       if (itemForm.id) {
         const res = await updateItem({ token }, { id: itemForm.id, ...payload })
@@ -256,6 +267,7 @@ export default function Dashboard() {
         <button onClick={() => setTab('users')} className={`px-3 py-2 rounded ${tab==='users'?'bg-black text-white':'bg-white'}`}>Users</button>
         <button onClick={() => setTab('items')} className={`px-3 py-2 rounded ${tab==='items'?'bg-black text-white':'bg-white'}`}>Items</button>
         <button onClick={() => setTab('sales')} className={`px-3 py-2 rounded ${tab==='sales'?'bg-black text-white':'bg-white'}`}>Sales</button>
+        <button onClick={() => { setTab('history'); loadRecentSales() }} className={`px-3 py-2 rounded ${tab==='history'?'bg-black text-white':'bg-white'}`}>History</button>
       </div>
   <h1 className="text-2xl font-bold mb-4">Admin — {tab === 'users' ? 'User Management' : tab === 'items' ? 'Item Management' : 'Sales Management'}</h1>
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -265,7 +277,11 @@ export default function Dashboard() {
         </div>
       )}
       {tab === 'items' && (
-        <div className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+        <div className="bg-white p-4 rounded shadow mb-2 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">Search</label>
+            <input className="border p-2 rounded w-full" placeholder="Search name..." value={itemFilters.q} onChange={(e)=>setItemFilters({ ...itemFilters, q: e.target.value })} />
+          </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Type</label>
             <select className="border p-2 rounded w-full" value={itemFilters.category_type} onChange={(e)=>setItemFilters({ ...itemFilters, category_type: e.target.value })}>
@@ -297,7 +313,17 @@ export default function Dashboard() {
             </select>
           </div>
           <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply filters</button>
-          <button onClick={()=>{ setItemFilters({ category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
+          <button onClick={()=>{ setItemFilters({ q:'', category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
+        </div>
+      )}
+      {tab === 'items' && lowStock.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded p-3 mb-6">
+          <div className="font-semibold mb-2">Low stock alerts</div>
+          <ul className="list-disc pl-5 space-y-1 text-sm">
+            {lowStock.map((it)=> (
+              <li key={it.id}>{it.name} — Qty {Number(it.total_quantity||0)} (threshold {it.restock_threshold})</li>
+            ))}
+          </ul>
         </div>
       )}
       {tab === 'sales' && (
@@ -344,6 +370,7 @@ export default function Dashboard() {
       {tab === 'items' && (
       <form onSubmit={handleItemSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-10 gap-3">
         <input className="border p-2 rounded" placeholder="Item name" value={itemForm.name} onChange={(e)=>setItemForm({ ...itemForm, name: e.target.value })} />
+        <input className="border p-2 rounded md:col-span-2" placeholder="Short description" value={itemForm.description} onChange={(e)=>setItemForm({ ...itemForm, description: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Purchase price (₱)" type="number" min="0" step="0.01" value={itemForm.purchase_price} onChange={(e)=>setItemForm({ ...itemForm, purchase_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Sell price (₱)" type="number" min="0" step="0.01" value={itemForm.sell_price} onChange={(e)=>setItemForm({ ...itemForm, sell_price: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Quantity" type="number" min="0" step="1" value={itemForm.total_quantity} onChange={(e)=>setItemForm({ ...itemForm, total_quantity: e.target.value })} />
@@ -383,9 +410,10 @@ export default function Dashboard() {
           <option value="21k">21k</option>
           <option value="24k">24k</option>
         </select>
+        <input className="border p-2 rounded" placeholder="Restock threshold (optional)" type="number" min="0" step="1" value={itemForm.restock_threshold} onChange={(e)=>setItemForm({ ...itemForm, restock_threshold: e.target.value })} />
         <div className="md:col-span-6 flex gap-2 items-center">
           <button className="px-4 py-2 rounded bg-blue-600 text-white">{itemForm.id ? 'Update Item' : 'Create Item'}</button>
-          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' }); setItemFile(null) }}>Clear</button>
+          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setItemForm({ id: '', name: '', description: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '', restock_threshold: '' }); setItemFile(null) }}>Clear</button>
           {(itemForm.image_url || itemFile) && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span>Preview:</span>
@@ -475,6 +503,7 @@ export default function Dashboard() {
                           onClick={() => setItemForm({
                             id: it.id,
                             name: it.name || '',
+                            description: it.description || '',
                             purchase_price: it.purchase_price || '',
                             sell_price: it.sell_price || '',
                             total_quantity: it.total_quantity || '',
@@ -484,7 +513,8 @@ export default function Dashboard() {
                             discount_value: (it.discount_value ?? ''),
                             category_type: it.category_type || '',
                             gold_type: it.gold_type || '',
-                            karat: it.karat || ''
+                            karat: it.karat || '',
+                            restock_threshold: it.restock_threshold ?? ''
                           })}
                         >
                           Edit
@@ -545,13 +575,26 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <div className="bg-white p-4 rounded shadow flex items-center justify-between">
+              <div className="bg-white p-4 rounded shadow flex items-center justify-between gap-3 flex-wrap">
                 <div className="font-semibold">Total: {currency(salesTotal)}</div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm">Payment</label>
+                  <select className="border p-1 rounded" value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)}>
+                    <option value="full">Full</option>
+                    <option value="layaway">Layaway</option>
+                  </select>
+                  {paymentMethod==='layaway' && (
+                    <>
+                      <label className="text-sm">Months</label>
+                      <input type="number" min={6} step={1} className="border p-1 rounded w-20" value={layawayMonths} onChange={(e)=>setLayawayMonths(Number(e.target.value||6))} />
+                    </>
+                  )}
+                </div>
                 <button
                   disabled={!selectedUserId}
                   onClick={async()=>{
                     const token = session?.access_token
-                    const res = await fetch('/api/admin/sales/finalize', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: selectedUserId }) })
+                    const res = await fetch('/api/admin/sales/finalize', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: selectedUserId, payment_method: paymentMethod, layaway_months: layawayMonths }) })
                     const json = await res.json()
                     if (json.error) setError(json.error)
                     else {
@@ -590,74 +633,77 @@ export default function Dashboard() {
                   className="ml-2 px-4 py-2 rounded bg-indigo-600 text-white disabled:opacity-50"
                 >Download invoice</button>
               </div>
-              <div className="bg-white p-4 rounded shadow">
-                <div className="font-semibold mb-2">Recent sales</div>
-                {recentSales.length === 0 ? (
-                  <p className="text-sm text-gray-600">No recent sales.</p>
-                ) : (
-                  <div className="grid gap-2 max-h-64 overflow-auto">
-                    {recentSales.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between border rounded p-2">
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {new Date(s.created_at).toLocaleString()}
-                            {s.status === 'voided' && (
-                              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">VOIDED</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-600">Sale ID: {s.id} • User: {s.user_id}</div>
-                          <div className="text-xs text-gray-700 mt-1">
-                            Total: {currency(s.total)}{typeof s.refunded_total !== 'undefined' && (
-                              <> • Refunded: {currency(s.refunded_total)} • Net: {currency(s.net_total)}</>
-                            )}
-                          </div>
+              
+            </div>
+          )}
+          {tab === 'history' && (
+            <div className="bg-white p-4 rounded shadow">
+              <div className="font-semibold mb-2">Recent sales</div>
+              {recentSales.length === 0 ? (
+                <p className="text-sm text-gray-600">No recent sales.</p>
+              ) : (
+                <div className="grid gap-2 max-h-96 overflow-auto">
+                  {recentSales.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between border rounded p-2">
+                      <div>
+                        <div className="font-medium flex items-center gap-2">
+                          {new Date(s.created_at).toLocaleString()}
+                          {s.status === 'voided' && (
+                            <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">VOIDED</span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={async()=>{
-                              try {
-                                const token = session?.access_token
-                                const resp = await fetch(`/api/admin/sales/invoice?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
-                                if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
-                                const blob = await resp.blob()
-                                const url = URL.createObjectURL(blob)
-                                const a = document.createElement('a')
-                                a.href = url
-                                a.download = `invoice_${s.id}.pdf`
-                                document.body.appendChild(a)
-                                a.click()
-                                a.remove()
-                                URL.revokeObjectURL(url)
-                              } catch (e) { setError(e.message) }
-                            }}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded"
-                          >Invoice</button>
-                          <button
-                            disabled={s.status === 'voided'}
-                            onClick={async()=>{
-                              const confirmVoid = window.confirm('Void this sale and restock all items? This creates a full refund record.')
-                              if (!confirmVoid) return
-                              try {
-                                const token = session?.access_token
-                                const resp = await fetch('/api/admin/sales/refund', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                  body: JSON.stringify({ sale_id: s.id, full: true, reason: 'Admin void' })
-                                })
-                                const j = await resp.json()
-                                if (!resp.ok || j.error) throw new Error(j.error || `Failed (${resp.status})`)
-                                await loadRecentSales()
-                                await loadItems()
-                              } catch (e) { setError(e.message) }
-                            }}
-                            className={`px-3 py-1 rounded ${s.status === 'voided' ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white'}`}
-                          >Void</button>
+                        <div className="text-xs text-gray-600">Sale ID: {s.id} • User: {s.user_id}</div>
+                        <div className="text-xs text-gray-700 mt-1">
+                          Total: {currency(s.total)}{typeof s.refunded_total !== 'undefined' && (
+                            <> • Refunded: {currency(s.refunded_total)} • Net: {currency(s.net_total)}</>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async()=>{
+                            try {
+                              const token = session?.access_token
+                              const resp = await fetch(`/api/admin/sales/invoice?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
+                              if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
+                              const blob = await resp.blob()
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = `invoice_${s.id}.pdf`
+                              document.body.appendChild(a)
+                              a.click()
+                              a.remove()
+                              URL.revokeObjectURL(url)
+                            } catch (e) { setError(e.message) }
+                          }}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded"
+                        >Invoice</button>
+                        <button
+                          disabled={s.status === 'voided'}
+                          onClick={async()=>{
+                            const confirmVoid = window.confirm('Void this sale and restock all items? This creates a full refund record.')
+                            if (!confirmVoid) return
+                            try {
+                              const token = session?.access_token
+                              const resp = await fetch('/api/admin/sales/refund', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ sale_id: s.id, full: true, reason: 'Admin void' })
+                              })
+                              const j = await resp.json()
+                              if (!resp.ok || j.error) throw new Error(j.error || `Failed (${resp.status})`)
+                              await loadRecentSales()
+                              await loadItems()
+                            } catch (e) { setError(e.message) }
+                          }}
+                          className={`px-3 py-1 rounded ${s.status === 'voided' ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white'}`}
+                        >Void</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

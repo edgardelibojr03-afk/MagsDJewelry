@@ -10,6 +10,7 @@ export async function listItems({ token, filters } = {}) {
   if (filters?.category_type) params.set('category_type', filters.category_type)
   if (filters?.gold_type) params.set('gold_type', filters.gold_type)
   if (filters?.karat) params.set('karat', filters.karat)
+  if (filters?.q) params.set('q', filters.q)
   const res = await fetch(`/api/admin/items?${params.toString()}`, { headers: authHeaders(token) })
   return res.json()
 }
