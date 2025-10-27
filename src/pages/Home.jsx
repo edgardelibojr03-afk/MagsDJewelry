@@ -79,7 +79,7 @@ export default function Home() {
       if (ro) ro.disconnect()
       if (live && live.parentNode) live.parentNode.removeChild(live)
     }
-  }, [])
+  }, [arrivals])
 
   // Hero background rotator
   useEffect(() => {
