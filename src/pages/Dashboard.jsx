@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [salesTotal, setSalesTotal] = useState(0)
   const [lastSaleId, setLastSaleId] = useState('')
   const [recentSales, setRecentSales] = useState([])
+  const [userSalesHistory, setUserSalesHistory] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('full')
   const [layawayMonths, setLayawayMonths] = useState(6)
 
@@ -62,6 +63,7 @@ export default function Dashboard() {
   if (tab === 'items') loadItems()
   if (tab === 'sales') {
     if (selectedUserId) loadUserReservations(selectedUserId)
+    if (selectedUserId) loadUserSalesHistory(selectedUserId)
     loadRecentSales()
   }
     }
@@ -127,6 +129,20 @@ export default function Dashboard() {
       setRecentSales(json.sales || [])
     } catch (e) {
       // swallow errors in background; optional to surface
+    }
+  }
+
+  const loadUserSalesHistory = async (uid) => {
+    try {
+      const token = session?.access_token
+      if (!token || !uid) return
+      const resp = await fetch(`/api/admin/sales/history?user_id=${encodeURIComponent(uid)}`, { headers: { Authorization: `Bearer ${token}` } })
+      const json = await resp.json()
+      if (!resp.ok || json.error) throw new Error(json.error || `Failed to load user sales (${resp.status})`)
+      setUserSalesHistory(json.sales || [])
+    } catch (e) {
+      // keep silent in UI unless needed
+      setUserSalesHistory([])
     }
   }
 
@@ -570,6 +586,55 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="font-semibold">₱{(Number(r.items?.sell_price||0)*Number(r.quantity||0)).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white p-4 rounded shadow">
+                <div className="font-semibold mb-2">Purchase history</div>
+                {userSalesHistory.length === 0 ? (
+                  <p className="text-sm text-gray-600">No past sales for this user.</p>
+                ) : (
+                  <div className="grid gap-2 max-h-64 overflow-auto">
+                    {userSalesHistory.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between border rounded p-2">
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            {new Date(s.created_at).toLocaleString()}
+                            {s.status === 'voided' && (
+                              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">VOIDED</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600">Sale ID: {s.id}</div>
+                          <div className="text-xs text-gray-700 mt-1">
+                            Total: {currency(s.total)}{typeof s.refunded_total !== 'undefined' && (
+                              <> • Refunded: {currency(s.refunded_total)} • Net: {currency(s.net_total)}</>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={async()=>{
+                              try {
+                                const token = session?.access_token
+                                const resp = await fetch(`/api/admin/sales/invoice?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
+                                if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
+                                const blob = await resp.blob()
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `invoice_${s.id}.pdf`
+                                document.body.appendChild(a)
+                                a.click()
+                                a.remove()
+                                URL.revokeObjectURL(url)
+                              } catch (e) { setError(e.message) }
+                            }}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded"
+                          >Invoice</button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -1,20 +1,287 @@
+import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import './style.css'
+
+// Images from src/assets
+import heroImg from '../assets/placeholder-hero.jpg'
+import ring1 from '../assets/placeholder-ring1.jpg'
+import ring2 from '../assets/placeholder-ring2.jpg'
+import ring3 from '../assets/placeholder-ring3.jpg'
+import ring4 from '../assets/placeholder-ring4.jpg'
+import ring5 from '../assets/placeholder-ring5.jpg'
+import watch1 from '../assets/placeholder-watch1.jpg'
+import watch2 from '../assets/placeholder-watch2.jpg'
+import watch3 from '../assets/placeholder-watch3.jpg'
+
 export default function Home() {
-  const placeholders = Array.from({ length: 15 }).map((_, i) => ({ id: i + 1 }))
+  const carouselRef = useRef(null)
+  const heroRef = useRef(null)
+  const aboutRef = useRef(null)
+
+  // Carousel behavior: nav buttons and keyboard arrows move by one card
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return
+    const track = carousel.querySelector('.carousel-track')
+    const prev = carousel.querySelector('.prev')
+    const next = carousel.querySelector('.next')
+    if (!track) return
+
+    function getScrollAmount() {
+      const card = track.querySelector('.product-card')
+      const gap = 24
+      if (!card) return 320
+      const rect = card.getBoundingClientRect()
+      return Math.round(rect.width + gap)
+    }
+
+    const scrollByCard = (direction) => {
+      const amount = getScrollAmount() * (direction === 'next' ? 1 : -1)
+      track.scrollBy({ left: amount, behavior: 'smooth' })
+    }
+
+    const onPrev = () => scrollByCard('prev')
+    const onNext = () => scrollByCard('next')
+    prev && prev.addEventListener('click', onPrev)
+    next && next.addEventListener('click', onNext)
+
+    // a11y
+    carousel.setAttribute('role', 'region')
+    carousel.setAttribute('aria-label', 'Latest Collection carousel')
+    const live = document.createElement('div')
+    live.setAttribute('aria-live', 'polite')
+    live.setAttribute('aria-atomic', 'true')
+    Object.assign(live.style, {
+      position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(1px, 1px, 1px, 1px)'
+    })
+    carousel.appendChild(live)
+
+    const onKeyDown = (e) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        scrollByCard('next')
+        live.textContent = 'Moved to next products'
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        scrollByCard('prev')
+        live.textContent = 'Moved to previous products'
+      }
+    }
+    track.addEventListener('keydown', onKeyDown)
+    if (!track.hasAttribute('tabindex')) track.setAttribute('tabindex', '0')
+    const onFocusIn = () => track.focus()
+    carousel.addEventListener('focusin', onFocusIn)
+
+    let ro
+    if ('ResizeObserver' in window) {
+      ro = new ResizeObserver(() => {})
+      track.querySelectorAll('.product-card').forEach((c) => ro.observe(c))
+    }
+
+    return () => {
+      prev && prev.removeEventListener('click', onPrev)
+      next && next.removeEventListener('click', onNext)
+      track.removeEventListener('keydown', onKeyDown)
+      carousel.removeEventListener('focusin', onFocusIn)
+      if (ro) ro.disconnect()
+      if (live && live.parentNode) live.parentNode.removeChild(live)
+    }
+  }, [])
+
+  // Hero background rotator
+  useEffect(() => {
+    const hero = heroRef.current
+    if (!hero) return
+    const bg1 = hero.querySelector('.hero-bg.bg1')
+    const bg2 = hero.querySelector('.hero-bg.bg2')
+    const tint = hero.querySelector('.hero-tint')
+    if (!bg1 || !bg2 || !tint) return
+
+    let current = 1
+    bg1.classList.add('visible')
+    bg2.classList.remove('visible')
+
+    let paused = false
+    const swap = () => {
+      if (paused) return
+      if (current === 1) {
+        bg1.classList.remove('visible')
+        bg2.classList.add('visible')
+        current = 2
+      } else {
+        bg2.classList.remove('visible')
+        bg1.classList.add('visible')
+        current = 1
+      }
+    }
+    const interval = setInterval(swap, 5000)
+    const onEnter = () => (paused = true)
+    const onLeave = () => (paused = false)
+    hero.addEventListener('mouseenter', onEnter)
+    hero.addEventListener('mouseleave', onLeave)
+    hero.addEventListener('focusin', onEnter)
+    hero.addEventListener('focusout', onLeave)
+
+    return () => {
+      clearInterval(interval)
+      hero.removeEventListener('mouseenter', onEnter)
+      hero.removeEventListener('mouseleave', onLeave)
+      hero.removeEventListener('focusin', onEnter)
+      hero.removeEventListener('focusout', onLeave)
+    }
+  }, [])
+
+  // About background rotator
+  useEffect(() => {
+    const about = aboutRef.current
+    if (!about) return
+    const layers = Array.from(about.querySelectorAll('.about-bg'))
+    if (!layers.length) return
+    let current = layers.findIndex((l) => l.classList.contains('visible'))
+    if (current === -1) {
+      current = 0
+      layers[0].classList.add('visible')
+    }
+    let paused = false
+    const swap = () => {
+      if (paused) return
+      const next = (current + 1) % layers.length
+      layers[current].classList.remove('visible')
+      layers[next].classList.add('visible')
+      current = next
+    }
+    const iv = setInterval(swap, 5000)
+    const onEnter = () => (paused = true)
+    const onLeave = () => (paused = false)
+    about.addEventListener('mouseenter', onEnter)
+    about.addEventListener('mouseleave', onLeave)
+    about.addEventListener('focusin', onEnter)
+    about.addEventListener('focusout', onLeave)
+    return () => {
+      clearInterval(iv)
+      about.removeEventListener('mouseenter', onEnter)
+      about.removeEventListener('mouseleave', onLeave)
+      about.removeEventListener('focusin', onEnter)
+      about.removeEventListener('focusout', onLeave)
+    }
+  }, [])
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold mb-6">Welcome to the Jewelry Store</h1>
-      <p className="mb-6 text-gray-600">Showcase of jewelry items (placeholders)</p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {placeholders.map((p) => (
-          <div key={p.id} className="bg-white rounded shadow p-4 flex flex-col items-center">
-            <div className="w-full h-40 bg-gray-200 rounded mb-3 flex items-center justify-center text-gray-400">Image {p.id}</div>
-            <div className="text-sm font-medium">Product {p.id}</div>
-            <div className="text-xs text-gray-500">$--.--</div>
+    <main>
+      {/* Hero Section */}
+      <section className="hero" ref={heroRef}>
+        {/* background layers (banner images) */}
+        <div className="hero-bg bg1 visible" aria-hidden="true"></div>
+        <div className="hero-bg bg2" aria-hidden="true"></div>
+        <div className="hero-tint" aria-hidden="true"></div>
+        <div className="container">
+          <div className="hero-content">
+            <h4 className="subtitle">Mag's D. Jewelry</h4>
+            <h1 className="title">Unveiling Brilliance and Timeless Elegance, Crafted for You.</h1>
+            <Link to="/products" className="btn btn-primary">SHOP NOW</Link>
           </div>
-        ))}
-      </div>
+          <div className="hero-image" aria-hidden="true">
+            <img src={heroImg} alt="" />
+          </div>
+        </div>
+      </section>
+
+      {/* Latest Collection */}
+      <section className="collection section-dark">
+        <div className="container">
+          <h5>Latest Collection</h5>
+          <h2>New Arrivals</h2>
+          <div className="collection-carousel" ref={carouselRef}>
+            <button className="carousel-nav prev" aria-label="Previous">‹</button>
+            <div className="carousel-track" tabIndex={0}>
+              {[ring1, ring2, ring3, ring4, ring5].map((img, idx) => (
+                <div className="product-card" key={`new-${idx}`}>
+                  <div className="product-image">
+                    <img src={img} alt={`Product ${idx + 1}`} />
+                  </div>
+                  <div className="product-info">
+                    <h3>Product {idx + 1}</h3>
+                    <p className="price">PHP 10,000</p>
+                    <Link to="/products" className="btn btn-primary">View</Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="carousel-nav next" aria-label="Next">›</button>
+          </div>
+          <div className="section-cta">
+            <Link to="/products" className="btn btn-primary">Browse More</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="watch section-light">
+        <div className="container">
+          <h5>Highlights</h5>
+          <h2>Best Sellers</h2>
+          <div className="product-grid">
+            {[watch1, watch2, watch3].map((img, idx) => (
+              <div className="product-card" key={`best-${idx}`}>
+                <div className="product-image">
+                  <img src={img} alt={`Product ${idx + 1}`} />
+                </div>
+                <div className="product-info">
+                  <h3>Product {idx + 1}</h3>
+                  <p className="price">PHP {idx === 1 ? '8,500' : idx === 0 ? '12,000' : '15,000'}</p>
+                  <Link to="/products" className="btn btn-primary">View</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="section-cta">
+            <Link to="/products" className="btn btn-primary">Browse More</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* About Us */}
+      <section className="about section-light" ref={aboutRef}>
+        {/* about background layers (rotating banners) */}
+        <div className="about-bg bg1 visible" aria-hidden="true"></div>
+        <div className="about-bg bg2" aria-hidden="true"></div>
+        <div className="about-bg bg3" aria-hidden="true"></div>
+        <div className="about-tint" aria-hidden="true"></div>
+        <div className="container about-inner">
+          <div className="about-image" aria-hidden="true"></div>
+          <div className="about-content">
+            <h5>About Us</h5>
+            <h2>Crafting Memories, One Piece at a Time</h2>
+            <p>
+              At Mag's D. Jewelry, we specialize in handcrafted pieces that blend timeless design with modern
+              sophistication. Each piece is carefully made to celebrate life's special moments.
+            </p>
+            <div className="section-cta">
+              <Link to="/about" className="btn btn-secondary">Learn More</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact / Find Us */}
+      <section className="contact section-dark">
+        <div className="container flex-center">
+          <div className="contact-image" aria-hidden="true"></div>
+          <div className="contact-info">
+            <h5>Get In Touch</h5>
+            <h2>Find Us Here</h2>
+            <p>2nd floor, Gaisano Mall Digos, Quezon Ave., Tres De Mayo, Digos City</p>
+            <p>Mon – Sun: 9am – 9pm</p>
+            <p>
+              <a href="mailto:jenniferprudente42@yahoo.com.ph" className="email-link">
+                jenniferprudente42@yahoo.com.ph
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter intentionally removed per requirement */}
     </main>
   )
 }

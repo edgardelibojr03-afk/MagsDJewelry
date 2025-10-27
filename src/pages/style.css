@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;500&display=swap');
+
 /* Reset & Base */
 * {
   margin: 0;
@@ -272,8 +274,8 @@ h3 {
 .hero-bg.visible {
   opacity: 1;
 }
-.hero-bg.bg1 { background-image: url("banner1.jpg"); }
-.hero-bg.bg2 { background-image: url("banner2.jpg"); }
+.hero-bg.bg1 { background-image: url("../assets/banner1.jpg"); }
+.hero-bg.bg2 { background-image: url("../assets/banner2.jpg"); }
 
 /* smoky brown tint overlay (keeps images lighter and tint consistent) */
 .hero-tint {
@@ -465,9 +467,9 @@ h3 {
   z-index: 0;
 }
 .about-bg.visible { opacity: 1; }
-.about-bg.bg1 { background-image: url("aboutbanner1.jpg"); }
-.about-bg.bg2 { background-image: url("aboutbanner2.jpg"); }
-.about-bg.bg3 { background-image: url("aboutbanner3.jpg"); }
+.about-bg.bg1 { background-image: url("../assets/aboutbanner1.jpg"); }
+.about-bg.bg2 { background-image: url("../assets/aboutbanner2.jpg"); }
+.about-bg.bg3 { background-image: url("../assets/aboutbanner3.jpg"); }
 
 /* about tint: layered gradient to match hero tint for consistent contrast */
 .about-tint {
