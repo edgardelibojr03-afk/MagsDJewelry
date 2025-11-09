@@ -31,7 +31,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <div className="hidden lg:flex lg:flex-1 items-center justify-center bg-cover bg-center" style={{ backgroundImage: `url(${loginPic})` }} />
+      <div className="hidden lg:flex lg:flex-1 items-center justify-center bg-cover bg-center" style={{ backgroundImage: `url(${loginpic})` }} />
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
           <div className="mb-6 text-center">
