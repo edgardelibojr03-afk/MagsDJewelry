@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import loginPic from '../assets/loginpic.png'
 import googleLogo from '../assets/google.svg'
+import logo from '../assets/logo.png'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -35,7 +36,7 @@ export default function Register() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
           <div className="mb-6 text-center">
-            <img src="/src/assets/logo.png" alt="Logo" className="mx-auto h-16" />
+            <img src={logo} alt="Logo" className="mx-auto h-16" />
             <h2 className="text-2xl font-bold mt-4">Create your account</h2>
             <p className="text-sm text-gray-500">Join Mag's D. Jewelry to reserve items and checkout faster.</p>
           </div>
