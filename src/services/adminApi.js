@@ -11,27 +11,32 @@ function buildHeaders({ secret, token, json = false } = {}) {
 export async function fetchUsersFromAdmin({ secret, token } = {}) {
   const url = `${ADMIN_ENDPOINT}?action=list`
   const res = await fetch(url, { headers: buildHeaders({ secret, token }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function createUserAdmin({ secret, token } = {}, payload) {
   const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'create', ...payload }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function updateUserAdmin({ secret, token } = {}, payload) {
   const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'update', ...payload }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function deleteUserAdmin({ secret, token } = {}, id) {
   const res = await fetch(ADMIN_ENDPOINT, { method: 'POST', headers: buildHeaders({ secret, token, json: true }), body: JSON.stringify({ action: 'delete', id }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 // New: admin list reservations for a user
 export async function adminListReservations({ secret, token } = {}, user_id) {
   const url = `${ADMIN_ENDPOINT}?action=reservations&user_id=${encodeURIComponent(user_id)}`
   const res = await fetch(url, { headers: buildHeaders({ secret, token }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }

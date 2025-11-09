@@ -12,27 +12,32 @@ export async function listItems({ token, filters } = {}) {
   if (filters?.karat) params.set('karat', filters.karat)
   if (filters?.q) params.set('q', filters.q)
   const res = await fetch(`/api/admin/items?${params.toString()}`, { headers: authHeaders(token) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function createItem({ token }, payload) {
   const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'create', ...payload }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function updateItem({ token }, payload) {
   const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'update', ...payload }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function deleteItem({ token }, id, { force } = {}) {
   const body = { action: 'delete', id }
   if (force === true) body.force = true
   const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify(body) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function restockItem({ token }, { id, quantity }) {
   const res = await fetch('/api/admin/items', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'restock', id, quantity }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }

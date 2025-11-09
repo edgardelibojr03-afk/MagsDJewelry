@@ -536,7 +536,41 @@ export default function Dashboard() {
                           Edit
                         </button>
                         <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleItemDelete(it.id)}>Delete</button>
-                        <div className="flex items-center gap-1 ml-auto">
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(it.is_best_seller)}
+                                onChange={async (e) => {
+                                  try {
+                                    const token = session?.access_token
+                                    const checked = e.target.checked
+                                    const res = await updateItem({ token }, { id: it.id, is_best_seller: checked })
+                                    if (res.error) return setError(res.error)
+                                    setItems((arr) => arr.map((x) => (x.id === it.id ? res.item : x)))
+                                  } catch (err) { setError(err.message) }
+                                }}
+                              />
+                              <span>Best seller</span>
+                            </label>
+                            <input
+                              type="number"
+                              className="border p-1 rounded w-20"
+                              placeholder="Rank"
+                              defaultValue={it.best_seller_rank ?? ''}
+                              onBlur={async (e) => {
+                                const val = e.target.value
+                                try {
+                                  const token = session?.access_token
+                                  const payload = { id: it.id, best_seller_rank: val === '' ? null : Number(val) }
+                                  const res = await updateItem({ token }, payload)
+                                  if (res.error) return setError(res.error)
+                                  setItems((arr) => arr.map((x) => (x.id === it.id ? res.item : x)))
+                                } catch (err) { setError(err.message) }
+                              }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 ml-auto">
                           <input
                             type="number"
                             className="border p-1 rounded w-24"

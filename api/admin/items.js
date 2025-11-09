@@ -76,7 +76,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ item: data })
     }
     if (action === 'update') {
-      const { id, name, purchase_price, sell_price, total_quantity, image_url, status, discount_type, discount_value, category_type, gold_type, karat, description, restock_threshold } = req.body || {}
+      const { id, name, purchase_price, sell_price, total_quantity, image_url, status, discount_type, discount_value, category_type, gold_type, karat, description, restock_threshold, is_best_seller, best_seller_rank } = req.body || {}
       if (!id) return res.status(400).json({ error: 'id is required' })
       const patch = {}
       if (name !== undefined) patch.name = name
@@ -93,6 +93,12 @@ export default async function handler(req, res) {
       if (category_type !== undefined && category_type !== null && category_type !== '') patch.category_type = category_type
       if (gold_type !== undefined && gold_type !== null && gold_type !== '') patch.gold_type = gold_type
       if (karat !== undefined && karat !== null && karat !== '') patch.karat = karat
+      // allow admin to set editorial best-seller flags and rank (only include when provided)
+      if (is_best_seller !== undefined) patch.is_best_seller = Boolean(is_best_seller)
+      if (best_seller_rank !== undefined) {
+        // treat empty string or null as explicit null (unset rank)
+        patch.best_seller_rank = (best_seller_rank === '' || best_seller_rank === null) ? null : Number(best_seller_rank)
+      }
       if (patch.sell_price != null && (patch.purchase_price != null ? patch.purchase_price : undefined) != null) {
         if (Number(patch.sell_price) < Number(patch.purchase_price)) return res.status(400).json({ error: 'Sell price cannot be less than purchase price' })
       }

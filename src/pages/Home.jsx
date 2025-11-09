@@ -10,6 +10,7 @@ export default function Home() {
   const heroRef = useRef(null)
   const aboutRef = useRef(null)
   const [arrivals, setArrivals] = useState([])
+  const [bestSellers, setBestSellers] = useState([])
 
   // Carousel behavior: nav buttons and keyboard arrows move by one card
   useEffect(() => {
@@ -184,6 +185,25 @@ export default function Home() {
     return () => { cancelled = true }
   }, [])
 
+  // Load editorial Best Sellers (admin-controlled). Falls back to arrivals in render when empty.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('items')
+          .select('id,name,sell_price,image_url,best_seller_rank')
+          .eq('is_best_seller', true)
+          .order('best_seller_rank', { ascending: true })
+          .limit(6)
+        if (!cancelled) setBestSellers(error ? [] : (data || []))
+      } catch (e) {
+        if (!cancelled) setBestSellers([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <main>
       {/* Hero Section */}
@@ -237,7 +257,7 @@ export default function Home() {
           <h5>Highlights</h5>
           <h2>Best Sellers</h2>
           <div className="product-grid">
-            {(arrivals.slice(0,3)).map((it) => (
+            {((bestSellers && bestSellers.length) ? bestSellers.slice(0,3) : arrivals.slice(0,3)).map((it) => (
               <div className="product-card" key={`best-${it.id}`}>
                 <div className="product-image">
                   <img src={it.image_url || '/vite.svg'} alt={it.name} />

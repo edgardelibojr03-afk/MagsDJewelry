@@ -10,6 +10,8 @@ import Products from './pages/Products'
 import Cart from './pages/Cart'
 import Account from './pages/Account'
 import AboutUs from './pages/AboutUs'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
@@ -31,6 +33,8 @@ function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
               <Route path="/about" element={<AboutUs />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
           </main>
           <Footer />

@@ -11,6 +11,7 @@ export default function Products() {
   const [error, setError] = useState('')
   const [qtyById, setQtyById] = useState({})
   const [filters, setFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
+  const [showFilters, setShowFilters] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -59,44 +60,68 @@ export default function Products() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Products</h1>
-      <div className="bg-white p-4 rounded shadow mb-4 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
-        <div className="sm:col-span-2">
+      <div className="bg-white p-4 rounded shadow mb-4 flex flex-col sm:flex-row sm:items-end sm:gap-3">
+        <div className="flex-1">
           <label className="block text-xs text-gray-600 mb-1">Search</label>
-          <input className="border p-2 rounded w-full" placeholder="Search name..." value={filters.q} onChange={(e)=>setFilters({ ...filters, q: e.target.value })} />
+          <div className="flex gap-2">
+            <input className="border p-2 rounded w-full" placeholder="Search name..." value={filters.q} onChange={(e)=>setFilters({ ...filters, q: e.target.value })} />
+            <button type="button" onClick={() => setShowFilters(true)} className="px-4 py-2 rounded bg-gray-200">Filters</button>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Type</label>
-          <select className="border p-2 rounded w-full" value={filters.category_type} onChange={(e)=>setFilters({ ...filters, category_type: e.target.value })}>
-            <option value="">All</option>
-            <option value="ring">Ring</option>
-            <option value="bracelet">Bracelet</option>
-            <option value="necklace">Necklace</option>
-            <option value="earrings">Earrings</option>
-            <option value="watch">Watch</option>
-          </select>
+        <div className="mt-3 sm:mt-0 sm:ml-auto flex gap-2">
+          <button onClick={load} className="px-4 py-2 rounded bg-black text-white">Search</button>
+          <button onClick={()=>{ setFilters({ q:'', category_type:'', gold_type:'', karat:'' }); load() }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
         </div>
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Gold type</label>
-          <select className="border p-2 rounded w-full" value={filters.gold_type} onChange={(e)=>setFilters({ ...filters, gold_type: e.target.value })}>
-            <option value="">All</option>
-            <option value="italian">Italian</option>
-            <option value="saudi">Saudi</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Karat</label>
-          <select className="border p-2 rounded w-full" value={filters.karat} onChange={(e)=>setFilters({ ...filters, karat: e.target.value })}>
-            <option value="">All</option>
-            <option value="10k">10k</option>
-            <option value="14k">14k</option>
-            <option value="18k">18k</option>
-            <option value="21k">21k</option>
-            <option value="24k">24k</option>
-          </select>
-        </div>
-        <button onClick={load} className="px-4 py-2 rounded bg-black text-white">Apply</button>
-        <button onClick={()=>{ setFilters({ q:'', category_type:'', gold_type:'', karat:'' }); load() }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
       </div>
+
+      {/* Filters modal */}
+      {showFilters && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={()=>setShowFilters(false)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" className="bg-white rounded shadow-lg p-6 z-50 w-full max-w-lg mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Filters</h3>
+              <button onClick={()=>setShowFilters(false)} className="text-gray-600">Close</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Type</label>
+                <select className="border p-2 rounded w-full" value={filters.category_type} onChange={(e)=>setFilters({ ...filters, category_type: e.target.value })}>
+                  <option value="">All</option>
+                  <option value="ring">Ring</option>
+                  <option value="bracelet">Bracelet</option>
+                  <option value="necklace">Necklace</option>
+                  <option value="earrings">Earrings</option>
+                  <option value="watch">Watch</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Gold type</label>
+                <select className="border p-2 rounded w-full" value={filters.gold_type} onChange={(e)=>setFilters({ ...filters, gold_type: e.target.value })}>
+                  <option value="">All</option>
+                  <option value="italian">Italian</option>
+                  <option value="saudi">Saudi</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Karat</label>
+                <select className="border p-2 rounded w-full" value={filters.karat} onChange={(e)=>setFilters({ ...filters, karat: e.target.value })}>
+                  <option value="">All</option>
+                  <option value="10k">10k</option>
+                  <option value="14k">14k</option>
+                  <option value="18k">18k</option>
+                  <option value="21k">21k</option>
+                  <option value="24k">24k</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={()=>{ setFilters({ q:filters.q, category_type:'', gold_type:'', karat:'' }); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
+              <button onClick={()=>{ load(); setShowFilters(false); }} className="px-4 py-2 rounded bg-black text-white">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
       {error && <p className="text-red-600 mb-4">{error}</p>}
       {loading ? (
         <p>Loading...</p>

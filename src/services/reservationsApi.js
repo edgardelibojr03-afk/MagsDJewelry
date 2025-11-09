@@ -7,15 +7,18 @@ function authHeaders(token, json = false) {
 
 export async function listReservations({ token }) {
   const res = await fetch('/api/reservations?action=list', { headers: authHeaders(token) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function reserveDelta({ token }, { item_id, delta }) {
   const res = await fetch('/api/reservations', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify({ action: 'reserve', item_id, delta }) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
 
 export async function cancelAllReservations({ token }) {
   const res = await fetch('/api/reservations?action=cancel_all', { headers: authHeaders(token) })
-  return res.json()
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
 }
