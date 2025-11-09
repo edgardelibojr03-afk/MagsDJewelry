@@ -553,22 +553,45 @@ export default function Dashboard() {
                               />
                               <span>Best seller</span>
                             </label>
-                            <input
-                              type="number"
-                              className="border p-1 rounded w-20"
-                              placeholder="Rank"
-                              defaultValue={it.best_seller_rank ?? ''}
-                              onBlur={async (e) => {
+                            <select
+                              className="border p-1 rounded w-24"
+                              value={it.best_seller_rank ?? ''}
+                              onChange={async (e) => {
                                 const val = e.target.value
                                 try {
                                   const token = session?.access_token
-                                  const payload = { id: it.id, best_seller_rank: val === '' ? null : Number(val) }
-                                  const res = await updateItem({ token }, payload)
+                                  // deselect rank (empty) -> unset best seller and rank
+                                  if (val === '') {
+                                    const res = await updateItem({ token }, { id: it.id, is_best_seller: false, best_seller_rank: null })
+                                    if (res.error) return setError(res.error)
+                                    setItems((arr) => arr.map((x) => (x.id === it.id ? res.item : x)))
+                                    return
+                                  }
+                                  const rank = Number(val)
+                                  // If another item holds this rank, clear it first
+                                  const other = items.find((x) => Number(x.best_seller_rank) === rank && x.id !== it.id)
+                                  let otherItem = null
+                                  if (other) {
+                                    const ro = await updateItem({ token }, { id: other.id, is_best_seller: false, best_seller_rank: null })
+                                    if (ro.error) return setError(ro.error)
+                                    otherItem = ro.item
+                                  }
+                                  // Set current item as best seller with selected rank
+                                  const res = await updateItem({ token }, { id: it.id, is_best_seller: true, best_seller_rank: rank })
                                   if (res.error) return setError(res.error)
-                                  setItems((arr) => arr.map((x) => (x.id === it.id ? res.item : x)))
+                                  setItems((arr) => arr.map((x) => {
+                                    if (x.id === it.id) return res.item
+                                    if (otherItem && x.id === otherItem.id) return otherItem
+                                    return x
+                                  }))
                                 } catch (err) { setError(err.message) }
                               }}
-                            />
+                            >
+                              <option value="">—</option>
+                              <option value="1">1</option>
+                              <option value="2">2</option>
+                              <option value="3">3</option>
+                            </select>
                           </div>
                           <div className="flex items-center gap-1 ml-auto">
                           <input
