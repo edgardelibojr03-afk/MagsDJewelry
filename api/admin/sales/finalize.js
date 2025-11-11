@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message })
     let total = 0
     // create sale header first (record admin)
-    const { data: sale, error: saleErr } = await admin.from('sales').insert({ user_id, admin_user_id: authz.user.id }).select('*').single()
+  const { data: sale, error: saleErr } = await admin.from('sales').insert({ user_id, admin_user_id: authz.user.id }).select('*').single()
     if (saleErr) return res.status(500).json({ error: saleErr.message })
     const soldItemIds = new Set()
     for (const r of rows) {
@@ -104,14 +104,17 @@ export default async function handler(req, res) {
     // Debug logging: print what the API received and what will be written to the sale row.
     // This is temporary; remove or guard behind a debug flag in production.
     try {
+      console.log('admin/sales/finalize - sale_created:', sale?.id)
       console.log('admin/sales/finalize - incoming:', { user_id, payment_method_raw: payment_method, layaway_months_raw: layaway_months })
       console.log('admin/sales/finalize - parsed_payment_method:', pm)
       console.log('admin/sales/finalize - patch_to_apply:', patch)
     } catch (e) {
       // best-effort logging — ignore any logging errors
     }
-
     const { data: updatedSale, error: updErr } = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
+    try {
+      console.log('admin/sales/finalize - update_result:', { updatedSale, updErr: updErr ? String(updErr) : null })
+    } catch (e) {}
     if (updErr) return res.status(500).json({ error: updErr.message })
 
     // TODO: Send simple email receipt via an email provider (e.g., Resend, SendGrid). Placeholder response for now.
