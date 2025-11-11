@@ -836,14 +836,22 @@ export default function Dashboard() {
                     const token = session?.access_token
                     const res = await fetch('/api/admin/sales/finalize', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: selectedUserId, payment_method: paymentMethod, layaway_months: layawayMonths }) })
                     const json = await res.json()
-                    if (json.error) setError(json.error)
-                    else {
-                      alert(`Sale finalized. Total: ₱${Number(json.total||0).toFixed(2)}`)
-                      setUserReservations([])
-                      setSalesTotal(0)
-                      setLastSaleId(json.sale_id || '')
-                      loadRecentSales()
+                    if (json.error) return setError(json.error)
+                    // Use returned sale object (finalize now returns updated sale)
+                    const saved = json.sale || {}
+                    const savedPm = String(saved.payment_method || 'full').toLowerCase()
+                    // Inform admin exactly what was saved
+                    alert(`Sale finalized. Total: ₱${Number(json.total||0).toFixed(2)} • Payment: ${savedPm}`)
+                    // If saved payment method differs from selected, surface a warning
+                    if (savedPm !== String(paymentMethod || 'full').toLowerCase()) {
+                      setError(`Warning: requested payment '${paymentMethod}' but saved as '${savedPm}'.`)
+                    } else {
+                      setError('')
                     }
+                    setUserReservations([])
+                    setSalesTotal(0)
+                    setLastSaleId(json.sale_id || '')
+                    loadRecentSales()
                   }}
                   className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
                 >Finalize sale</button>
