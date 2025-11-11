@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   try {
     const { data: rows, error } = await admin
       .from('reservations')
-      .select('*, item:items(id, name, sell_price, total_quantity, reserved_quantity)')
+      .select('*, item:items(id, name, sell_price, total_quantity, reserved_quantity, discount_type, discount_value)')
       .eq('user_id', user_id)
     if (error) return res.status(500).json({ error: error.message })
     let total = 0
@@ -41,14 +41,30 @@ export default async function handler(req, res) {
     if (saleErr) return res.status(500).json({ error: saleErr.message })
     const soldItemIds = new Set()
     for (const r of rows) {
-      const q = r.quantity || 0
-      const price = r.item?.sell_price || 0
-      total += q * price
+      const q = Number(r.quantity || 0)
+      const basePrice = Number(r.item?.sell_price || 0)
+      // compute discounted price based on item's discount fields
+      let unitPrice = basePrice
+      const dType = String(r.item?.discount_type || 'none')
+      const dVal = Number(r.item?.discount_value || 0)
+      if (dType === 'percent' && dVal > 0) {
+        unitPrice = Number((basePrice * (1 - dVal / 100)).toFixed(2))
+      } else if (dType === 'fixed' && dVal > 0) {
+        unitPrice = Number(Math.max(0, basePrice - dVal).toFixed(2))
+      }
+      total += q * unitPrice
       const newTotalQty = Math.max(0, (r.item?.total_quantity || 0) - q)
       const newReserved = Math.max(0, (r.item?.reserved_quantity || 0) - q)
       await admin.from('items').update({ total_quantity: newTotalQty, reserved_quantity: newReserved }).eq('id', r.item_id)
-      // record line detail with price at purchase
-      await admin.from('sale_items').insert({ sale_id: sale.id, item_id: r.item_id, quantity: q, price_at_purchase: price })
+      // record line detail with price at purchase and discount metadata
+      await admin.from('sale_items').insert({
+        sale_id: sale.id,
+        item_id: r.item_id,
+        quantity: q,
+        price_at_purchase: unitPrice,
+        discount_type: dType || 'none',
+        discount_value: dVal || 0
+      })
       soldItemIds.add(r.item_id)
     }
     // Remove only the reservations that belonged to the user we just finalized.

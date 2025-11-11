@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     if (sErr || !sale) return res.status(404).json({ error: 'Sale not found' })
     const { data: lines, error: lErr } = await admin
       .from('sale_items')
-      .select('quantity, price_at_purchase, item:items(name)')
+      .select('quantity, price_at_purchase, discount_type, discount_value, item:items(name, sell_price)')
       .eq('sale_id', sale_id)
     if (lErr) return res.status(500).json({ error: lErr.message })
 
@@ -122,14 +122,23 @@ export default async function handler(req, res) {
       drawText(`Finalized by: ${adminEmail}`, margin, y)
       y -= 16
     }
-    if (sale.payment_method === 'layaway') {
-      drawText(`Payment: Layaway`, margin, y)
+    // Show layaway details if payment method indicates layaway or if
+    // layaway-related fields were populated. Use case-insensitive check
+    // and fall back to numeric coercion so values saved as strings still
+    // render correctly.
+    const pm = String(sale.payment_method || '').toLowerCase()
+    const down = Number(sale.downpayment || 0)
+    const receivable = Number(sale.amount_receivable || 0)
+    const months = Number(sale.layaway_months || 0)
+    const monthly = Number(sale.monthly_payment || 0)
+    if (pm === 'layaway' || months > 0 || down > 0 || receivable > 0 || monthly > 0) {
+      drawText(`Payment: ${pm === 'layaway' ? 'Layaway' : (sale.payment_method || 'Custom')}`, margin, y)
       y -= 16
-      drawText(`Downpayment (5%): ${php(sale.downpayment || 0)}`, margin, y)
+      drawText(`Downpayment (5%): ${php(down)}`, margin, y)
       y -= 16
-      drawText(`Amount receivable: ${php(sale.amount_receivable || 0)}`, margin, y)
+      drawText(`Amount receivable: ${php(receivable)}`, margin, y)
       y -= 16
-      drawText(`Months: ${sale.layaway_months} • Monthly: ${php(sale.monthly_payment || 0)}`, margin, y)
+      drawText(`Months: ${months || '-'} • Monthly: ${php(monthly)}`, margin, y)
       y -= 16
     }
 
@@ -148,10 +157,13 @@ export default async function handler(req, res) {
 
     let total = 0
     for (const li of lines || []) {
-      const name = li.item?.name || 'Item'
-      const qty = Number(li.quantity || 0)
-      const unit = Number(li.price_at_purchase || 0)
-      const lineTotal = qty * unit
+  const name = li.item?.name || 'Item'
+  const qty = Number(li.quantity || 0)
+  const unit = Number(li.price_at_purchase || 0)
+  const orig = Number(li.item?.sell_price || unit)
+  const dType = String(li.discount_type || 'none')
+  const dVal = Number(li.discount_value || 0)
+  const lineTotal = qty * unit
       total += lineTotal
       if (y < 90) {
         newPage()
@@ -164,7 +176,12 @@ export default async function handler(req, res) {
         page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
         y -= 8
       }
+      // Show item name and, if discounted, show original price & discount info
       drawText(name, colItem, y)
+      if (dType !== 'none' && dVal > 0) {
+        const info = `(orig: ${php(orig)}, ${dType}: ${dVal}${dType==='percent'?'%':''})`
+        drawText(info, colItem + 2, y - 12, { size: 10 })
+      }
       drawText(qty, colQty, y)
       drawText(php(unit), colUnit, y)
       drawText(php(lineTotal), colLine, y)
