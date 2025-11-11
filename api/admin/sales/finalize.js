@@ -113,7 +113,10 @@ export default async function handler(req, res) {
     }
     const { data: updatedSale, error: updErr } = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
     try {
-      console.log('admin/sales/finalize - update_result:', { updatedSale, updErr: updErr ? String(updErr) : null })
+      console.log('admin/sales/finalize - update_result:', { updatedSale, updErr: updErr ? (updErr.message || String(updErr)) : null })
+      if (updErr) {
+        try { console.log('admin/sales/finalize - update_error_full:', JSON.stringify(updErr, Object.getOwnPropertyNames(updErr), 2)) } catch (e) { console.log('admin/sales/finalize - update_error_full (string):', String(updErr)) }
+      }
     } catch (e) {}
     if (updErr) return res.status(500).json({ error: updErr.message })
 
