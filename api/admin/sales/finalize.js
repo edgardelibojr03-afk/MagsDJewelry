@@ -101,6 +101,16 @@ export default async function handler(req, res) {
     } else {
       patch = { ...patch, payment_method: 'full', layaway_months: null, downpayment: 0, amount_receivable: 0, monthly_payment: 0 }
     }
+    // Debug logging: print what the API received and what will be written to the sale row.
+    // This is temporary; remove or guard behind a debug flag in production.
+    try {
+      console.log('admin/sales/finalize - incoming:', { user_id, payment_method_raw: payment_method, layaway_months_raw: layaway_months })
+      console.log('admin/sales/finalize - parsed_payment_method:', pm)
+      console.log('admin/sales/finalize - patch_to_apply:', patch)
+    } catch (e) {
+      // best-effort logging — ignore any logging errors
+    }
+
     const { data: updatedSale, error: updErr } = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
     if (updErr) return res.status(500).json({ error: updErr.message })
 
