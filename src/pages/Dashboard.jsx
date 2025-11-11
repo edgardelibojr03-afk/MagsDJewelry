@@ -6,6 +6,7 @@ import { listItems, createItem, updateItem, deleteItem, restockItem } from '../s
 import { currency, formatDateTime } from '../utils/format'
 import { listReservations } from '../services/reservationsApi'
 import { supabase } from '../services/supabaseClient'
+import ConfirmModal from '../components/ConfirmModal'
 
 export default function Dashboard() {
   const { session, loading: authLoading } = useAuth()
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [showItemFilters, setShowItemFilters] = useState(false)
   const [showOnlyRestock, setShowOnlyRestock] = useState(false)
   const [lowStock, setLowStock] = useState([])
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null })
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
   const [salesTotal, setSalesTotal] = useState(0)
@@ -220,55 +222,64 @@ export default function Dashboard() {
   const handleItemSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const token = session?.access_token
-    try {
-      let imageUrl = itemForm.image_url || null
-      // If a file is chosen, upload to Supabase Storage and use its public URL
-      if (itemFile) {
-        const file = itemFile
-        const fileName = `${(typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now()}-${file.name}`
-        const path = `items/${fileName}`
-        const { error: upErr } = await supabase.storage.from('item-images').upload(path, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type || 'image/*'
-        })
-        if (upErr) throw new Error(`Upload failed: ${upErr.message}`)
-        const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path)
-        imageUrl = pub?.publicUrl || null
-      }
+    // Show confirmation for creating/updating an item
+    setConfirm({
+      open: true,
+      title: itemForm.id ? 'Confirm update' : 'Confirm create',
+      message: `Are you sure you want to ${itemForm.id ? 'update' : 'create'} the item "${itemForm.name}"?`,
+      onConfirm: async () => {
+        setConfirm((c) => ({ ...c, open: false }))
+        // perform actual submit
+        const token = session?.access_token
+        try {
+          let imageUrl = itemForm.image_url || null
+          if (itemFile) {
+            const file = itemFile
+            const fileName = `${(typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now()}-${file.name}`
+            const path = `items/${fileName}`
+            const { error: upErr } = await supabase.storage.from('item-images').upload(path, file, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: file.type || 'image/*'
+            })
+            if (upErr) throw new Error(`Upload failed: ${upErr.message}`)
+            const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path)
+            imageUrl = pub?.publicUrl || null
+          }
 
-      if (Number(itemForm.sell_price || 0) < Number(itemForm.purchase_price || 0)) {
-        throw new Error('Sell price cannot be less than purchase price')
+          if (Number(itemForm.sell_price || 0) < Number(itemForm.purchase_price || 0)) {
+            throw new Error('Sell price cannot be less than purchase price')
+          }
+          const payload = {
+            name: itemForm.name,
+            description: itemForm.description || null,
+            purchase_price: Number(itemForm.purchase_price || 0),
+            sell_price: Number(itemForm.sell_price || 0),
+            total_quantity: Number(itemForm.total_quantity || 0),
+            image_url: imageUrl,
+            status: itemForm.status,
+            discount_type: itemForm.discount_type,
+            discount_value: Number(itemForm.discount_value || 0),
+            category_type: itemForm.category_type || null,
+            gold_type: itemForm.gold_type || null,
+            karat: itemForm.karat || null,
+            restock_threshold: itemForm.restock_threshold === '' ? null : Number(itemForm.restock_threshold)
+          }
+          if (itemForm.id) {
+            const res = await updateItem({ token }, { id: itemForm.id, ...payload })
+            if (res.error) return setError(res.error)
+          } else {
+            const res = await createItem({ token }, payload)
+            if (res.error) return setError(res.error)
+          }
+          setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' })
+          setItemFile(null)
+          await loadItems()
+        } catch (err) {
+          setError(err.message)
+        }
       }
-      const payload = {
-        name: itemForm.name,
-        description: itemForm.description || null,
-        purchase_price: Number(itemForm.purchase_price || 0),
-        sell_price: Number(itemForm.sell_price || 0),
-        total_quantity: Number(itemForm.total_quantity || 0),
-        image_url: imageUrl,
-        status: itemForm.status,
-        discount_type: itemForm.discount_type,
-        discount_value: Number(itemForm.discount_value || 0),
-        category_type: itemForm.category_type || null,
-        gold_type: itemForm.gold_type || null,
-        karat: itemForm.karat || null,
-        restock_threshold: itemForm.restock_threshold === '' ? null : Number(itemForm.restock_threshold)
-      }
-      if (itemForm.id) {
-        const res = await updateItem({ token }, { id: itemForm.id, ...payload })
-        if (res.error) return setError(res.error)
-      } else {
-        const res = await createItem({ token }, payload)
-        if (res.error) return setError(res.error)
-      }
-  setItemForm({ id: '', name: '', purchase_price: '', sell_price: '', total_quantity: '', image_url: '', status: 'active', discount_type: 'none', discount_value: '', category_type: '', gold_type: '', karat: '' })
-      setItemFile(null)
-      await loadItems()
-    } catch (err) {
-      setError(err.message)
-    }
+    })
   }
 
   const handleItemDelete = async (id) => {
@@ -524,10 +535,18 @@ export default function Dashboard() {
                       >
                         Edit
                       </button>
-                      <button onClick={() => handleToggleBlock(u)} className="px-3 py-1 bg-gray-200 rounded">
+                      <button
+                        onClick={() => setConfirm({
+                          open: true,
+                          title: u?.app_metadata?.blocked ? 'Confirm unblock' : 'Confirm block',
+                          message: `Are you sure you want to ${u?.app_metadata?.blocked ? 'unblock' : 'block'} ${u.email}?`,
+                          onConfirm: async () => { setConfirm((c)=>({ ...c, open: false })); await handleToggleBlock(u) }
+                        })}
+                        className="px-3 py-1 bg-gray-200 rounded"
+                      >
                         {u?.app_metadata?.blocked ? 'Unblock' : 'Block'}
                       </button>
-                      <button onClick={() => handleDelete(u.id)} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
+                      <button onClick={() => setConfirm({ open: true, title: 'Confirm delete', message: `Delete user ${u.email}? This cannot be undone.`, onConfirm: async () => { setConfirm((c)=>({ ...c, open: false })); await handleDelete(u.id) } })} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
                     </div>
                   </div>
                 ))}
@@ -596,7 +615,7 @@ export default function Dashboard() {
                         >
                           Edit
                         </button>
-                        <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => handleItemDelete(it.id)}>Delete</button>
+                        <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={() => setConfirm({ open: true, title: 'Confirm delete', message: `Delete item ${it.name}? This will remove the item from the catalog.`, onConfirm: async () => { setConfirm((c)=>({ ...c, open: false })); await handleItemDelete(it.id) } })}>Delete</button>
                           <div className="flex items-center gap-2">
                             <label className="flex items-center gap-2 text-sm">
                               <input
@@ -664,7 +683,8 @@ export default function Dashboard() {
                           />
                           <button
                             className="px-2 py-1 bg-green-600 text-white rounded"
-                            onClick={async()=>{
+                            onClick={() => setConfirm({ open: true, title: 'Confirm restock', message: `Restock ${it.name} by ${restockQtyMap[it.id] || 0}?`, onConfirm: async () => {
+                              setConfirm((c)=>({ ...c, open: false }))
                               const token = session?.access_token
                               const qty = Number(restockQtyMap[it.id] || 0)
                               if (!Number.isFinite(qty) || qty <= 0) { setError('Enter a valid restock quantity'); return }
@@ -674,7 +694,7 @@ export default function Dashboard() {
                                 setRestockQtyMap((m)=> ({ ...m, [it.id]: '' }))
                                 await loadItems()
                               }
-                            }}
+                            } })}
                           >Restock</button>
                         </div>
                       </div>
@@ -891,6 +911,26 @@ export default function Dashboard() {
           )}
         </div>
       )}
+      <ConfirmWrapper state={confirm} setState={setConfirm} />
     </div>
   )
 }
+
+// Confirmation modal used across critical admin actions
+function ConfirmWrapper({ state, setState }) {
+  if (!state.open) return null
+  const handleConfirm = async () => {
+    try {
+      if (typeof state.onConfirm === 'function') await state.onConfirm()
+    } catch (e) {
+      // swallow here; individual handlers will set error state if needed
+    } finally {
+      setState((s) => ({ ...s, open: false }))
+    }
+  }
+  return (
+    <ConfirmModal open={state.open} title={state.title} message={state.message} onConfirm={handleConfirm} onCancel={() => setState((s)=>({ ...s, open: false }))} />
+  )
+}
+
+export { ConfirmWrapper }

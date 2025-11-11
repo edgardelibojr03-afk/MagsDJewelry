@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../services/supabaseClient'
 import { currency } from '../utils/format'
 import { reserveDelta } from '../services/reservationsApi'
+import ReserveModal from '../components/ReserveModal'
 
 export default function Products() {
   const { session, user } = useAuth()
@@ -10,6 +11,8 @@ export default function Products() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [qtyById, setQtyById] = useState({})
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [showReserveModal, setShowReserveModal] = useState(false)
   const [filters, setFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
   const [showFilters, setShowFilters] = useState(false)
 
@@ -46,15 +49,17 @@ export default function Products() {
 
   useEffect(() => { load() }, [])
 
-  const onReserve = async (id) => {
+  const onReserve = async (id, qty) => {
     if (!user) return setError('Please log in to reserve items')
     const token = session?.access_token
-    const qty = Math.max(0, Number(qtyById[id] || 0))
-    if (qty <= 0) return
-    const res = await reserveDelta({ token }, { item_id: id, delta: qty })
+    const q = Math.max(0, Number(qty || 0))
+    if (q <= 0) return
+    const res = await reserveDelta({ token }, { item_id: id, delta: q })
     if (res.error) return setError(res.error)
-    // refresh items to reflect reserved_quantity changes and reset counter
+    // refresh items to reflect reserved_quantity changes
     await load()
+    setShowReserveModal(false)
+    setSelectedItem(null)
   }
 
   return (
@@ -176,35 +181,10 @@ export default function Products() {
                       )
                     }
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3">
                     <button
-                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: Math.max(1, (Number(m[it.id]) || 1) - 1) }))}
-                      aria-label="Decrease quantity"
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-16 text-center border rounded py-1"
-                      value={qtyById[it.id] || 1}
-                      onChange={(e) => {
-                        const v = Math.max(1, Number(e.target.value || 1))
-                        setQtyById((m) => ({ ...m, [it.id]: v }))
-                      }}
-                    />
-                    <button
-                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-                      onClick={() => setQtyById((m) => ({ ...m, [it.id]: (Number(m[it.id]) || 1) + 1 }))}
-                      aria-label="Increase quantity"
-                    >
-                      +
-                    </button>
-                    <button
-                      className="px-3 py-1 bg-black text-white rounded disabled:opacity-50"
-                      onClick={() => onReserve(it.id)}
-                      disabled={(qtyById[it.id] || 0) <= 0}
+                      className="px-4 py-2 bg-black text-white rounded w-full"
+                      onClick={() => { setSelectedItem(it); setShowReserveModal(true) }}
                     >
                       {queued ? 'Queue Reserve' : 'Reserve'}
                     </button>
@@ -216,6 +196,12 @@ export default function Products() {
           })}
         </div>
       )}
+      <ReserveModal
+        open={showReserveModal}
+        item={selectedItem}
+        onClose={() => { setShowReserveModal(false); setSelectedItem(null) }}
+        onReserve={(qty) => selectedItem && onReserve(selectedItem.id, qty)}
+      />
     </div>
   )
 }
