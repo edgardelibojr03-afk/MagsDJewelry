@@ -135,29 +135,15 @@ export default async function handler(req, res) {
       drawText(`Finalized by: ${adminEmail}`, margin, y)
       y -= 16
     }
-    // Explicitly show the saved payment method (helps debug mismatch with admin selection)
-    const savedPaymentMethod = String(sale.payment_method || 'full')
-    drawText(`Payment method: ${savedPaymentMethod}`, margin, y)
-    y -= 16
-    // Show layaway details if payment method indicates layaway or if
-    // layaway-related fields were populated. Use case-insensitive check
-    // and fall back to numeric coercion so values saved as strings still
-    // render correctly.
+    // Capture payment/layaway fields for later rendering near the bottom
+    // (we'll render the layaway summary after the item list so it appears
+    // at the bottom of the invoice). Keep per-line layaway info under each
+    // item as before.
     const pm = String(sale.payment_method || '').toLowerCase()
     const down = Number(sale.downpayment || 0)
     const receivable = Number(sale.amount_receivable || 0)
     const months = Number(sale.layaway_months || 0)
     const monthly = Number(sale.monthly_payment || 0)
-    if (pm === 'layaway' || months > 0 || down > 0 || receivable > 0 || monthly > 0) {
-      drawText(`Payment: ${pm === 'layaway' ? 'Layaway' : (sale.payment_method || 'Custom')}`, margin, y)
-      y -= 16
-      drawText(`Downpayment (5%): ${php(down)}`, margin, y)
-      y -= 16
-      drawText(`Amount receivable: ${php(receivable)}`, margin, y)
-      y -= 16
-      drawText(`Months: ${months || '-'} • Monthly: ${php(monthly)}`, margin, y)
-      y -= 16
-    }
 
     // Table headers
     const colItem = margin
@@ -221,6 +207,22 @@ export default async function handler(req, res) {
     }
 
     y -= 8
+
+    // Render layaway summary at the bottom of the items list so it is
+    // visually grouped with totals. Leave a small gap before drawing.
+    if (pm === 'layaway' || months > 0 || down > 0 || receivable > 0 || monthly > 0) {
+      // Ensure spacing
+      y -= 8
+      drawText(`Payment: ${pm === 'layaway' ? 'Layaway' : (sale.payment_method || 'Custom')}`, margin, y)
+      y -= 16
+      drawText(`Downpayment (5%): ${php(down)}`, margin, y)
+      y -= 16
+      drawText(`Amount receivable: ${php(receivable)}`, margin, y)
+      y -= 16
+      drawText(`Months: ${months || '-'} • Monthly: ${php(monthly)}`, margin, y)
+      y -= 16
+    }
+
     page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
     y -= 16
     drawText(`Total: ${php(total)}`, colLine, y, { bold: true })
