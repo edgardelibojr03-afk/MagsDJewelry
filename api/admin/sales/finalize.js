@@ -51,12 +51,13 @@ export default async function handler(req, res) {
       await admin.from('sale_items').insert({ sale_id: sale.id, item_id: r.item_id, quantity: q, price_at_purchase: price })
       soldItemIds.add(r.item_id)
     }
+    // Remove only the reservations that belonged to the user we just finalized.
+    // Do NOT delete reservations belonging to other users — queued reservations
+    // should remain untouched so other customers don't unexpectedly lose their
+    // place in line. Previously we removed all reservations for sold items,
+    // which caused other users' reservations to be deleted; that behavior is
+    // unsafe and has been removed.
     await admin.from('reservations').delete().eq('user_id', user_id)
-    // Remove other queued reservations for items that were sold
-    if (soldItemIds.size > 0) {
-      const ids = Array.from(soldItemIds)
-      await admin.from('reservations').delete().in('item_id', ids)
-    }
     // Handle payment/layaway details
     let patch = { total }
     const pm = (payment_method || 'full').toLowerCase()
