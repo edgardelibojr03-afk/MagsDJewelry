@@ -132,18 +132,26 @@ export default async function handler(req, res) {
       }
     } catch (e) {}
 
-    // If the error indicates missing columns, remove them from the patch and retry once.
+    // If the error indicates missing columns in the PostgREST schema cache,
+    // iteratively remove those columns from the patch and retry (up to a
+    // small limit). This handles environments where optional layaway
+    // columns haven't been applied or the schema cache is stale.
     if (updErr && typeof updErr.message === 'string' && /Could not find the/.test(updErr.message)) {
       try {
-        const msg = updErr.message
-        const colRegex = /'([^']+)' column/g
-        const missing = []
-        let m
-        while ((m = colRegex.exec(msg)) !== null) {
-          if (m[1]) missing.push(m[1])
-        }
-        if (missing.length > 0) {
-          const reducedPatch = { ...patch }
+        let attempts = 0
+        const maxAttempts = 5
+        let reducedPatch = { ...patch }
+        while (attempts < maxAttempts && updErr && typeof updErr.message === 'string' && /Could not find the/.test(updErr.message)) {
+          attempts += 1
+          // extract column names quoted in the error message
+          const msg = updErr.message
+          const colRegex = /'([^']+)' column/g
+          const missing = []
+          let m
+          while ((m = colRegex.exec(msg)) !== null) {
+            if (m[1]) missing.push(m[1])
+          }
+          if (missing.length === 0) break
           for (const c of missing) {
             if (c in reducedPatch) {
               delete reducedPatch[c]
@@ -155,8 +163,10 @@ export default async function handler(req, res) {
             updatedSale = r2.data
             updErr = r2.error
             try { console.log('admin/sales/finalize - update_result (retry):', { updatedSale, updErr: updErr ? (updErr.message || String(updErr)) : null }) } catch (e) {}
+            // continue loop if there are still missing-column errors
           } catch (e2) {
             updErr = e2
+            break
           }
         }
       } catch (e) {
