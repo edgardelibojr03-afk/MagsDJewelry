@@ -45,12 +45,23 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'list') {
+      // Include discount fields so clients can show the correct reserved price
       const { data, error } = await admin
         .from('reservations')
-        .select('id, quantity, created_at, item:items(id, name, sell_price, image_url)')
+        .select('id, quantity, created_at, expires_at, item:items(id, name, sell_price, image_url, discount_type, discount_value)')
         .eq('user_id', user.id)
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(200).json({ reservations: data })
+      const reservations = (data || []).map((r) => {
+        const base = Number(r?.item?.sell_price || 0)
+        const dType = String(r?.item?.discount_type || 'none')
+        const dVal = Number(r?.item?.discount_value || 0)
+        let unit = base
+        if (dType === 'percent' && dVal > 0) unit = Number((base * (1 - dVal / 100)).toFixed(2))
+        else if (dType === 'fixed' && dVal > 0) unit = Number(Math.max(0, base - dVal).toFixed(2))
+        const qty = Number(r.quantity || 0)
+        return { ...r, unit_price: unit, line_total: Number((unit * qty).toFixed(2)) }
+      })
+      return res.status(200).json({ reservations })
     }
 
     if (action === 'reserve') {

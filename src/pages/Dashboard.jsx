@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { fetchUsersFromAdmin, createUserAdmin, updateUserAdmin, deleteUserAdmin, adminListReservations } from '../services/adminApi'
 import { listItems, createItem, updateItem, deleteItem, restockItem } from '../services/itemsApi'
-import { currency, formatDateTime } from '../utils/format'
+import { currency, formatDateTime, countdownTo } from '../utils/format'
 import { listReservations } from '../services/reservationsApi'
 import { supabase } from '../services/supabaseClient'
 import ConfirmModal from '../components/ConfirmModal'
@@ -713,19 +713,27 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-600">No reservations for this user.</p>
                 ) : (
                   <div className="grid gap-3">
-                    {userReservations.map((r) => (
-                      <div key={r.id} className="flex items-center gap-3 border rounded p-2">
-                        <img src={r.items?.image_url || '/vite.svg'} alt={r.items?.name || ''} className="w-12 h-12 object-cover rounded" />
-                        <div className="flex-1">
-                          <div className="font-medium">{r.items?.name || 'Item'}</div>
-                          <div className="text-sm text-gray-600">Qty: {r.quantity} • {currency(r.items?.sell_price||0)}</div>
-                          {r.created_at && (
-                            <div className="text-xs text-gray-500">Reserved: {formatDateTime(r.created_at)}</div>
-                          )}
+                    {userReservations.map((r) => {
+                      const base = Number(r.items?.sell_price || 0)
+                      const dType = String(r.items?.discount_type || 'none')
+                      const dVal = Number(r.items?.discount_value || 0)
+                      let unit = base
+                      if (dType === 'percent' && dVal > 0) unit = Number((base * (1 - dVal / 100)).toFixed(2))
+                      else if (dType === 'fixed' && dVal > 0) unit = Number(Math.max(0, base - dVal).toFixed(2))
+                      return (
+                        <div key={r.id} className="flex items-center gap-3 border rounded p-2">
+                          <img src={r.items?.image_url || '/vite.svg'} alt={r.items?.name || ''} className="w-12 h-12 object-cover rounded" />
+                          <div className="flex-1">
+                            <div className="font-medium">{r.items?.name || 'Item'}</div>
+                            <div className="text-sm text-gray-600">Qty: {r.quantity} • {currency(unit)} {dType !== 'none' && dVal > 0 ? <span className="ml-2 text-xs text-gray-500">(orig {currency(base)})</span> : null}</div>
+                            {r.created_at && (
+                              <div className="text-xs text-gray-500">Reserved: {formatDateTime(r.created_at)}{r.expires_at ? ` • ${countdownTo(r.expires_at).text}` : ''}</div>
+                            )}
+                          </div>
+                          <div className="font-semibold">{currency(unit * Number(r.quantity || 0))}</div>
                         </div>
-                        <div className="font-semibold">₱{(Number(r.items?.sell_price||0)*Number(r.quantity||0)).toFixed(2)}</div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>

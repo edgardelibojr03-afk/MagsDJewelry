@@ -67,14 +67,26 @@ export default async function handler(req, res) {
           item_id,
           quantity,
           created_at,
-          items:items(id, name, sell_price, image_url, available_quantity)
+          expires_at,
+          items:items(id, name, sell_price, image_url, available_quantity, discount_type, discount_value)
         `)
         .eq('user_id', user_id)
         .order('created_at', { ascending: false })
       if (error) return res.status(500).json({ error: error.message })
       const reservations = data || []
-      const total = reservations.reduce((sum, r) => sum + (Number(r?.items?.sell_price || 0) * Number(r?.quantity || 0)), 0)
-      return res.status(200).json({ reservations, total })
+      // Compute total using discounted unit price when applicable
+      const mapped = reservations.map((r) => {
+        const base = Number(r?.items?.sell_price || 0)
+        const dType = String(r?.items?.discount_type || 'none')
+        const dVal = Number(r?.items?.discount_value || 0)
+        let unit = base
+        if (dType === 'percent' && dVal > 0) unit = Number((base * (1 - dVal / 100)).toFixed(2))
+        else if (dType === 'fixed' && dVal > 0) unit = Number(Math.max(0, base - dVal).toFixed(2))
+        const qty = Number(r.quantity || 0)
+        return { ...r, unit_price: unit, line_total: Number((unit * qty).toFixed(2)) }
+      })
+      const total = mapped.reduce((sum, r) => sum + Number(r.line_total || 0), 0)
+      return res.status(200).json({ reservations: mapped, total })
     }
 
     if (action === 'create') {
