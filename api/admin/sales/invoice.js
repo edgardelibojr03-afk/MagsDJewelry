@@ -195,14 +195,16 @@ export default async function handler(req, res) {
       drawText(qty, colQty, y)
       drawText(php(unit), colUnit, y)
       drawText(php(lineTotal), colLine, y)
-      y -= 14
-      // Draw per-line layaway info (small text)
+      // Leave a slightly larger gap before drawing per-line layaway info
+      // so it doesn't overlap the discount/info text printed under the
+      // item name.
       if (isLay) {
+        y -= 18
         const layInfo = `Down: ${php(lineDown)} • ${monthsForLay} months • Monthly: ${php(lineMonthly)}`
         drawText(layInfo, colItem, y, { size: 10 })
-        y -= 14
+        y -= 12
       } else {
-        y -= 4
+        y -= 8
       }
     }
 
