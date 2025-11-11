@@ -111,14 +111,60 @@ export default async function handler(req, res) {
     } catch (e) {
       // best-effort logging — ignore any logging errors
     }
-    const { data: updatedSale, error: updErr } = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
+    // Try updating the sale. If the DB schema doesn't have some of the
+    // layaway columns (schema drift), PostgREST returns an error like
+    // "Could not find the 'amount_receivable' column of 'sales' in the schema cache".
+    // In that case, strip the unknown columns from the patch and retry once.
+    let updatedSale = null
+    let updErr = null
     try {
-      console.log('admin/sales/finalize - update_result:', { updatedSale, updErr: updErr ? (updErr.message || String(updErr)) : null })
+      const r = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
+      updatedSale = r.data
+      updErr = r.error
+    } catch (e) {
+      updErr = e
+    }
+
+    try {
+      console.log('admin/sales/finalize - update_result (initial):', { updatedSale, updErr: updErr ? (updErr.message || String(updErr)) : null })
       if (updErr) {
-        try { console.log('admin/sales/finalize - update_error_full:', JSON.stringify(updErr, Object.getOwnPropertyNames(updErr), 2)) } catch (e) { console.log('admin/sales/finalize - update_error_full (string):', String(updErr)) }
+        try { console.log('admin/sales/finalize - update_error_full (initial):', JSON.stringify(updErr, Object.getOwnPropertyNames(updErr), 2)) } catch (e) { console.log('admin/sales/finalize - update_error_full (initial-string):', String(updErr)) }
       }
     } catch (e) {}
-    if (updErr) return res.status(500).json({ error: updErr.message })
+
+    // If the error indicates missing columns, remove them from the patch and retry once.
+    if (updErr && typeof updErr.message === 'string' && /Could not find the/.test(updErr.message)) {
+      try {
+        const msg = updErr.message
+        const colRegex = /'([^']+)' column/g
+        const missing = []
+        let m
+        while ((m = colRegex.exec(msg)) !== null) {
+          if (m[1]) missing.push(m[1])
+        }
+        if (missing.length > 0) {
+          const reducedPatch = { ...patch }
+          for (const c of missing) {
+            if (c in reducedPatch) {
+              delete reducedPatch[c]
+            }
+          }
+          try {
+            console.log('admin/sales/finalize - retrying update without columns:', missing)
+            const r2 = await admin.from('sales').update(reducedPatch).eq('id', sale.id).select('*').single()
+            updatedSale = r2.data
+            updErr = r2.error
+            try { console.log('admin/sales/finalize - update_result (retry):', { updatedSale, updErr: updErr ? (updErr.message || String(updErr)) : null }) } catch (e) {}
+          } catch (e2) {
+            updErr = e2
+          }
+        }
+      } catch (e) {
+        // ignore parsing/logging errors and fall through to error return
+      }
+    }
+
+    if (updErr) return res.status(500).json({ error: updErr.message || String(updErr) })
 
     // TODO: Send simple email receipt via an email provider (e.g., Resend, SendGrid). Placeholder response for now.
     return res.status(200).json({ ok: true, total, sale_id: sale.id, sale: updatedSale })
