@@ -108,7 +108,12 @@ export default async function handler(req, res) {
     y -= 20
     drawText(`Sale ID: ${sale.id}`, margin, y)
     y -= 16
-    drawText(`Date: ${new Date(sale.created_at || Date.now()).toLocaleString()}`, margin, y)
+  // Format date using configured timezone (default to Asia/Manila) so printed
+  // invoice times match business local time instead of server/UTC time.
+  const tz = process.env.TIMEZONE || 'Asia/Manila'
+  const dt = new Date(sale.created_at || Date.now())
+  const dateStr = dt.toLocaleString('en-PH', { timeZone: tz, year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  drawText(`Date: ${dateStr} ${tz}`, margin, y)
     y -= 16
     const cust = customerName || customerEmail || sale.user_id
     drawText(`Customer: ${cust}`, margin, y)

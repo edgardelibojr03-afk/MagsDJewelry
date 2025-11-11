@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../services/supabaseClient'
 import { currency } from '../utils/format'
-import { reserveDelta } from '../services/reservationsApi'
+import { reserveDelta, listReservations } from '../services/reservationsApi'
 import ReserveModal from '../components/ReserveModal'
 
 export default function Products() {
@@ -15,6 +15,7 @@ export default function Products() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [filters, setFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
   const [showFilters, setShowFilters] = useState(false)
+  const [userResMap, setUserResMap] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -48,6 +49,28 @@ export default function Products() {
   }
 
   useEffect(() => { load() }, [])
+
+  // If user is logged in, fetch their reservations to show per-item expiry/countdown
+  useEffect(() => {
+    let mounted = true
+    const loadUserRes = async () => {
+      if (!user) { setUserResMap({}); return }
+      const token = session?.access_token
+      try {
+        const res = await listReservations({ token })
+        if (res.error) {
+          // ignore; keep empty map
+        } else {
+          const map = {}
+          for (const r of (res.reservations || [])) map[r.item_id || r.item?.id] = r
+          if (mounted) setUserResMap(map)
+        }
+      } catch (e) {}
+    }
+    loadUserRes()
+    return () => { mounted = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   // Live search: debounce typing in the search box to auto-run load
   useEffect(() => {
@@ -157,6 +180,9 @@ export default function Products() {
                     </div>
                   )}
                   <div className="text-sm text-gray-600">{queued ? 'Queued reservations allowed' : `Available: ${available}`}</div>
+                  {userResMap[it.id] && (
+                    <div className="text-xs text-gray-600 mt-1">Reserved: {formatDateTime(userResMap[it.id].created_at)} • {userResMap[it.id].expires_at ? countdownTo(userResMap[it.id].expires_at).text : ''}</div>
+                  )}
                   <div className="text-sm">
                     Price: {
                       (it.discount_type && it.discount_value != null && Number(it.discount_value) !== 0)
