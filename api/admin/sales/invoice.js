@@ -38,13 +38,18 @@ export default async function handler(req, res) {
   if (!sale_id) return res.status(400).json({ error: 'sale_id is required' })
 
   try {
-  const { data: sale, error: sErr } = await admin.from('sales').select('*').eq('id', sale_id).single()
+    const { data: sale, error: sErr } = await admin.from('sales').select('*').eq('id', sale_id).single()
     if (sErr || !sale) return res.status(404).json({ error: 'Sale not found' })
     const { data: lines, error: lErr } = await admin
       .from('sale_items')
       .select('quantity, price_at_purchase, discount_type, discount_value, item:items(name, sell_price)')
       .eq('sale_id', sale_id)
     if (lErr) return res.status(500).json({ error: lErr.message })
+
+    // Debugging helper: if caller requests debug=1, return JSON of sale + lines
+    if (String(req.query?.debug || '') === '1') {
+      return res.status(200).json({ sale, lines })
+    }
 
     // Fetch customer info and admin (finalized by)
     let customerEmail = ''
@@ -122,6 +127,10 @@ export default async function handler(req, res) {
       drawText(`Finalized by: ${adminEmail}`, margin, y)
       y -= 16
     }
+    // Explicitly show the saved payment method (helps debug mismatch with admin selection)
+    const savedPaymentMethod = String(sale.payment_method || 'full')
+    drawText(`Payment method: ${savedPaymentMethod}`, margin, y)
+    y -= 16
     // Show layaway details if payment method indicates layaway or if
     // layaway-related fields were populated. Use case-insensitive check
     // and fall back to numeric coercion so values saved as strings still
