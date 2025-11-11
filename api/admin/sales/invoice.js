@@ -163,7 +163,14 @@ export default async function handler(req, res) {
   const orig = Number(li.item?.sell_price || unit)
   const dType = String(li.discount_type || 'none')
   const dVal = Number(li.discount_value || 0)
-  const lineTotal = qty * unit
+      const lineTotal = qty * unit
+      // If this sale is a layaway, compute per-line layaway breakdown so
+      // invoice can show per-item downpayment and monthly amounts.
+      const isLay = (String(sale.payment_method || '').toLowerCase() === 'layaway')
+      const monthsForLay = Number(sale.layaway_months || 0)
+      const lineDown = isLay ? Number((lineTotal * 0.05).toFixed(2)) : 0
+      const lineReceivable = isLay ? Number((lineTotal - lineDown).toFixed(2)) : 0
+      const lineMonthly = (isLay && monthsForLay > 0) ? Number((lineReceivable / monthsForLay).toFixed(2)) : 0
       total += lineTotal
       if (y < 90) {
         newPage()
@@ -185,7 +192,15 @@ export default async function handler(req, res) {
       drawText(qty, colQty, y)
       drawText(php(unit), colUnit, y)
       drawText(php(lineTotal), colLine, y)
-      y -= 18
+      y -= 14
+      // Draw per-line layaway info (small text)
+      if (isLay) {
+        const layInfo = `Down: ${php(lineDown)} • ${monthsForLay} months • Monthly: ${php(lineMonthly)}`
+        drawText(layInfo, colItem, y, { size: 10 })
+        y -= 14
+      } else {
+        y -= 4
+      }
     }
 
     y -= 8
