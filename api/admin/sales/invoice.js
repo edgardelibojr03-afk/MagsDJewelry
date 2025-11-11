@@ -199,12 +199,13 @@ export default async function handler(req, res) {
       // so it doesn't overlap the discount/info text printed under the
       // item name.
       if (isLay) {
-        y -= 18
+        // a slightly larger gap so layaway info sits below the discount text
+        y -= 22
         const layInfo = `Down: ${php(lineDown)} • ${monthsForLay} months • Monthly: ${php(lineMonthly)}`
         drawText(layInfo, colItem, y, { size: 10 })
-        y -= 12
+        y -= 14
       } else {
-        y -= 8
+        y -= 10
       }
     }
 
