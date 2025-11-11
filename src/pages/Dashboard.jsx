@@ -19,6 +19,8 @@ export default function Dashboard() {
   const [itemFile, setItemFile] = useState(null)
   const [restockQtyMap, setRestockQtyMap] = useState({})
   const [itemFilters, setItemFilters] = useState({ q: '', category_type: '', gold_type: '', karat: '' })
+  const [showItemFilters, setShowItemFilters] = useState(false)
+  const [showOnlyRestock, setShowOnlyRestock] = useState(false)
   const [lowStock, setLowStock] = useState([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [userReservations, setUserReservations] = useState([])
@@ -59,16 +61,16 @@ export default function Dashboard() {
   useEffect(() => {
     // Fetch when auth is ready and we have a token
     if (!authLoading && session?.access_token) {
-  if (tab === 'users') fetchUsers()
-  if (tab === 'items') loadItems()
-  if (tab === 'sales') {
-    if (selectedUserId) loadUserReservations(selectedUserId)
-    if (selectedUserId) loadUserSalesHistory(selectedUserId)
-    loadRecentSales()
-  }
+      if (tab === 'users') fetchUsers()
+      if (tab === 'items') loadItems()
+      if (tab === 'sales') {
+        if (selectedUserId) loadUserReservations(selectedUserId)
+        if (selectedUserId) loadUserSalesHistory(selectedUserId)
+        loadRecentSales()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, session, tab, selectedUserId])
+  }, [authLoading, session, tab, selectedUserId, showOnlyRestock])
 
   const loadUserReservations = async (uid) => {
     if (!uid) return
@@ -288,11 +290,19 @@ export default function Dashboard() {
     }
   }
 
+  // If admin toggles "show only restock" we filter the rendered list locally
+  const displayedItems = showOnlyRestock ? items.filter((it) => lowStock.some((l) => l.id === it.id)) : items
+
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="flex items-center gap-4 mb-4">
         <button onClick={() => setTab('users')} className={`px-3 py-2 rounded ${tab==='users'?'bg-black text-white':'bg-white'}`}>Users</button>
-        <button onClick={() => setTab('items')} className={`px-3 py-2 rounded ${tab==='items'?'bg-black text-white':'bg-white'}`}>Items</button>
+        <button onClick={() => setTab('items')} className={`px-3 py-2 rounded ${tab==='items'?'bg-black text-white':'bg-white'}`}>
+          Items
+          {lowStock.length > 0 && (
+            <span className="ml-2 inline-block text-xs bg-red-600 text-white rounded-full px-2 py-0.5">{lowStock.length}</span>
+          )}
+        </button>
         <button onClick={() => setTab('sales')} className={`px-3 py-2 rounded ${tab==='sales'?'bg-black text-white':'bg-white'}`}>Sales</button>
         <button onClick={() => { setTab('history'); loadRecentSales() }} className={`px-3 py-2 rounded ${tab==='history'?'bg-black text-white':'bg-white'}`}>History</button>
       </div>
@@ -304,44 +314,66 @@ export default function Dashboard() {
         </div>
       )}
       {tab === 'items' && (
-        <div className="bg-white p-4 rounded shadow mb-2 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
-          <div className="sm:col-span-2">
-            <label className="block text-xs text-gray-600 mb-1">Search</label>
-            <input className="border p-2 rounded w-full" placeholder="Search name..." value={itemFilters.q} onChange={(e)=>setItemFilters({ ...itemFilters, q: e.target.value })} />
+        <>
+          <div className="bg-white p-4 rounded shadow mb-2 flex flex-col sm:flex-row gap-3 items-end justify-between">
+            <div className="flex-1 sm:mr-4">
+              <label className="block text-xs text-gray-600 mb-1">Search</label>
+              <input className="border p-2 rounded w-full" placeholder="Search name..." value={itemFilters.q} onChange={(e)=>setItemFilters({ ...itemFilters, q: e.target.value })} />
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={()=> setShowItemFilters(true)} className="px-4 py-2 rounded bg-gray-200">Filters</button>
+              <button onClick={()=>{ setShowOnlyRestock((s)=>!s) }} className={`px-4 py-2 rounded ${showOnlyRestock ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>{showOnlyRestock ? 'Showing restock' : 'Show only restock'}</button>
+              <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply</button>
+              <button onClick={()=>{ setItemFilters({ q:'', category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Type</label>
-            <select className="border p-2 rounded w-full" value={itemFilters.category_type} onChange={(e)=>setItemFilters({ ...itemFilters, category_type: e.target.value })}>
-              <option value="">All</option>
-              <option value="ring">Ring</option>
-              <option value="bracelet">Bracelet</option>
-              <option value="necklace">Necklace</option>
-              <option value="earrings">Earrings</option>
-              <option value="watch">Watch</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Gold type</label>
-            <select className="border p-2 rounded w-full" value={itemFilters.gold_type} onChange={(e)=>setItemFilters({ ...itemFilters, gold_type: e.target.value })}>
-              <option value="">All</option>
-              <option value="italian">Italian</option>
-              <option value="saudi">Saudi</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Karat</label>
-            <select className="border p-2 rounded w-full" value={itemFilters.karat} onChange={(e)=>setItemFilters({ ...itemFilters, karat: e.target.value })}>
-              <option value="">All</option>
-              <option value="10k">10k</option>
-              <option value="14k">14k</option>
-              <option value="18k">18k</option>
-              <option value="21k">21k</option>
-              <option value="24k">24k</option>
-            </select>
-          </div>
-          <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply filters</button>
-          <button onClick={()=>{ setItemFilters({ q:'', category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
-        </div>
+
+          {/* Modal for item filters */}
+          {showItemFilters && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black opacity-40" onClick={()=>setShowItemFilters(false)} />
+              <div className="bg-white rounded p-6 z-10 w-full max-w-md">
+                <h3 className="text-lg font-semibold mb-3">Filters</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Type</label>
+                    <select className="border p-2 rounded w-full" value={itemFilters.category_type} onChange={(e)=>setItemFilters({ ...itemFilters, category_type: e.target.value })}>
+                      <option value="">All</option>
+                      <option value="ring">Ring</option>
+                      <option value="bracelet">Bracelet</option>
+                      <option value="necklace">Necklace</option>
+                      <option value="earrings">Earrings</option>
+                      <option value="watch">Watch</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Gold type</label>
+                    <select className="border p-2 rounded w-full" value={itemFilters.gold_type} onChange={(e)=>setItemFilters({ ...itemFilters, gold_type: e.target.value })}>
+                      <option value="">All</option>
+                      <option value="italian">Italian</option>
+                      <option value="saudi">Saudi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Karat</label>
+                    <select className="border p-2 rounded w-full" value={itemFilters.karat} onChange={(e)=>setItemFilters({ ...itemFilters, karat: e.target.value })}>
+                      <option value="">All</option>
+                      <option value="10k">10k</option>
+                      <option value="14k">14k</option>
+                      <option value="18k">18k</option>
+                      <option value="21k">21k</option>
+                      <option value="24k">24k</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button className="px-4 py-2 rounded bg-gray-200" onClick={()=>{ setShowItemFilters(false) }}>Close</button>
+                  <button className="px-4 py-2 rounded bg-black text-white" onClick={()=>{ setShowItemFilters(false); loadItems(); }}>Apply</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {tab === 'items' && lowStock.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded p-3 mb-6">
@@ -510,7 +542,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((it) => (
+                {displayedItems.map((it) => (
                   <div key={it.id} className="bg-white p-4 rounded shadow flex gap-4">
                     <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-24 h-24 object-cover rounded" />
                     <div className="flex-1">
