@@ -592,7 +592,36 @@ export default function Dashboard() {
                         return null
                       })()}
                       <div className="text-sm text-gray-600">Qty: {Number(it.total_quantity||0).toLocaleString()} • Reserved: {Number(it.reserved_quantity||0).toLocaleString()}</div>
-                      <div className="text-sm">{currency(it.sell_price)}</div>
+                      <div className="text-sm">
+                        {(it.discount_type && it.discount_value != null && Number(it.discount_value) !== 0) ? (
+                          (() => {
+                            const oldP = Number(it.sell_price || 0)
+                            let newP = oldP
+                            let savings = 0
+                            let suffix = ''
+                            if (String(it.discount_type) === 'percent') {
+                              const pct = Number(it.discount_value || 0)
+                              newP = Math.max(0, Math.round((oldP * (1 - pct / 100)) * 100) / 100)
+                              savings = oldP - newP
+                              suffix = ` (${pct}% off)`
+                            } else if (String(it.discount_type) === 'fixed') {
+                              const amt = Number(it.discount_value || 0)
+                              newP = Math.max(0, Math.round((oldP - amt) * 100) / 100)
+                              savings = oldP - newP
+                              suffix = ` (${currency(savings)} off)`
+                            }
+                            return (
+                              <span>
+                                <span className="text-gray-500 line-through mr-2">{currency(oldP)}</span>
+                                <span className="font-semibold">{currency(newP)}</span>
+                                <span className="ml-2 text-sm text-green-600">{suffix || ` - ${currency(savings)}`}</span>
+                              </span>
+                            )
+                          })()
+                        ) : (
+                          <span>{currency(it.sell_price)}</span>
+                        )}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-2 items-center">
                         <button
                           className="px-2 py-1 bg-yellow-400 rounded"
