@@ -63,24 +63,61 @@ export default async function handler(req, res) {
       const newQty = Math.max(0, (existing?.quantity || 0) + delta)
       if (!existing && newQty === 0) return res.status(200).json({ ok: true, quantity: 0 })
       const expires_at = new Date(Date.now() + 30*24*60*60*1000).toISOString()
-      if (!existing) {
-        const { error: insErr } = await admin.from('reservations').insert({ user_id: user.id, item_id, quantity: newQty, created_at: new Date().toISOString(), expires_at })
-        if (insErr) return res.status(500).json({ error: insErr.message })
-      } else if (newQty === 0) {
-        const { error: delErr } = await admin.from('reservations').delete().eq('id', existing.id)
-        if (delErr) return res.status(500).json({ error: delErr.message })
-      } else {
-        const { error: updErr } = await admin.from('reservations').update({ quantity: newQty, expires_at }).eq('id', existing.id)
-        if (updErr) return res.status(500).json({ error: updErr.message })
+
+      // We'll capture the reservation row we create/update so we can revert if
+      // adjusting the item's reserved_quantity fails (to avoid phantom reservations).
+      let reservationRow = null
+      try {
+        if (!existing) {
+          const { data: insData, error: insErr } = await admin.from('reservations').insert({ user_id: user.id, item_id, quantity: newQty, created_at: new Date().toISOString(), expires_at }).select('*').single()
+          if (insErr) throw insErr
+          reservationRow = insData
+        } else if (newQty === 0) {
+          // deleting reservation; capture id in case we need to restore
+          reservationRow = existing
+          const { error: delErr } = await admin.from('reservations').delete().eq('id', existing.id)
+          if (delErr) throw delErr
+        } else {
+          const { data: updData, error: updErr } = await admin.from('reservations').update({ quantity: newQty, expires_at }).eq('id', existing.id).select('*').single()
+          if (updErr) throw updErr
+          reservationRow = updData
+        }
+      } catch (e) {
+        return res.status(500).json({ error: e.message || 'Failed to modify reservation' })
       }
+
       const reservedDelta = newQty - (existing?.quantity || 0)
       if (reservedDelta !== 0) {
-        // Try to adjust reserved count; if exceeds current stock, fall back to direct update (queue beyond stock)
+        // Try to adjust reserved count; if it fails, revert the reservation change
         const { error: itemUpdErr } = await admin.rpc('increment_reserved_quantity', { p_item_id: item_id, p_delta: reservedDelta })
         if (itemUpdErr) {
+          // fallback direct update
           const newReserved = Math.max(0, Number(item.reserved_quantity || 0) + Number(reservedDelta))
           const { error: fallbackErr } = await admin.from('items').update({ reserved_quantity: newReserved }).eq('id', item_id)
-          if (fallbackErr) return res.status(500).json({ error: fallbackErr.message })
+          if (fallbackErr) {
+            // Revert reservation change to previous state to avoid phantom reservations
+            try {
+              if (!existing) {
+                // we created a new reservation row; delete it
+                if (reservationRow && reservationRow.id) {
+                  await admin.from('reservations').delete().eq('id', reservationRow.id)
+                }
+              } else {
+                // we updated an existing reservation; restore previous quantity
+                await admin.from('reservations').update({ quantity: existing.quantity, expires_at: existing.expires_at }).eq('id', existing.id)
+              }
+            } catch (revertErr) {
+              // If revert fails, log and return server error; prefer to inform client
+              return res.status(500).json({ error: 'Reservation failed and revert failed; please contact support' })
+            }
+
+            // Map constraint violation to friendly message when applicable
+            const emsg = String(fallbackErr.message || '')
+            if (emsg.includes('reserved_not_exceed_total') || emsg.includes('violates check constraint')) {
+              return res.status(400).json({ error: 'Cannot reserve more than the available stock for this item.' })
+            }
+            return res.status(500).json({ error: fallbackErr.message })
+          }
         }
       }
       return res.status(200).json({ ok: true, quantity: newQty })
