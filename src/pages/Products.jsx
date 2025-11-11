@@ -49,6 +49,15 @@ export default function Products() {
 
   useEffect(() => { load() }, [])
 
+  // Live search: debounce typing in the search box to auto-run load
+  useEffect(() => {
+    const t = setTimeout(() => {
+      load()
+    }, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.q])
+
   const onReserve = async (id, qty) => {
     if (!user) return setError('Please log in to reserve items')
     const token = session?.access_token
@@ -137,7 +146,7 @@ export default function Products() {
             const queued = available <= 0
             return (
               <div key={it.id} className="bg-white rounded shadow overflow-hidden">
-                <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-full h-56 object-cover" />
+                <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-full h-80 object-cover" />
                 <div className="p-4">
                   <div className="font-semibold text-lg">{it.name}</div>
                   {(it.category_type || it.gold_type || it.karat) && (

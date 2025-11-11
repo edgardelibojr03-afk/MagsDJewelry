@@ -11,6 +11,25 @@ export default function ReserveModal({ open, item, onClose, onReserve, maxAvaila
   const available = typeof maxAvailable === 'number' ? maxAvailable : ((item.total_quantity || 0) - (item.reserved_quantity || 0))
   const queued = available <= 0
 
+  // compute discounted price if any
+  const oldP = Number(item.sell_price || 0)
+  let newP = oldP
+  let savings = 0
+  let suffix = ''
+  if (item.discount_type && item.discount_value != null && Number(item.discount_value) !== 0) {
+    if (String(item.discount_type) === 'percent') {
+      const pct = Number(item.discount_value || 0)
+      newP = Math.max(0, Math.round((oldP * (1 - pct / 100)) * 100) / 100)
+      savings = oldP - newP
+      suffix = `${pct}% off`
+    } else if (String(item.discount_type) === 'fixed') {
+      const amt = Number(item.discount_value || 0)
+      newP = Math.max(0, Math.round((oldP - amt) * 100) / 100)
+      savings = oldP - newP
+      suffix = `${currency(savings)} off`
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black opacity-40" onClick={onClose} />
@@ -20,7 +39,17 @@ export default function ReserveModal({ open, item, onClose, onReserve, maxAvaila
           <div className="flex-1">
             <h3 className="text-xl font-semibold">{item.name}</h3>
             <div className="text-sm text-gray-600 mb-2">{item.category_type || ''} {item.gold_type ? `• ${item.gold_type}` : ''} {item.karat ? `• ${item.karat}` : ''}</div>
-            <div className="text-lg font-semibold mb-2">{currency(item.sell_price)}</div>
+            <div className="text-lg font-semibold mb-2">
+              {item.discount_type && item.discount_value != null && Number(item.discount_value) !== 0 ? (
+                <span>
+                  <span className="text-gray-500 line-through mr-2">{currency(oldP)}</span>
+                  <span className="font-semibold">{currency(newP)}</span>
+                  <span className="ml-2 text-sm text-green-600">{suffix || ` - ${currency(savings)}`}</span>
+                </span>
+              ) : (
+                <span>{currency(oldP)}</span>
+              )}
+            </div>
             <div className="text-sm text-gray-600 mb-4">{queued ? 'Currently fully reserved — you will be added to the queue.' : `Available: ${available}`}</div>
 
             <div className="flex items-center gap-2">
