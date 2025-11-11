@@ -20,7 +20,7 @@ export default function Products() {
       // Public read via Supabase client (RLS allows select for anon)
       let q = supabase
         .from('items')
-        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url, category_type, gold_type, karat')
+        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url, category_type, gold_type, karat, discount_type, discount_value')
         .order('created_at', { ascending: false })
       if (filters.q) q = q.ilike('name', `%${filters.q}%`)
       if (filters.category_type) q = q.eq('category_type', filters.category_type)
@@ -136,7 +136,39 @@ export default function Products() {
                 <div className="p-4">
                   <div className="font-semibold text-lg">{it.name}</div>
                   <div className="text-sm text-gray-600">{queued ? 'Queued reservations allowed' : `Available: ${available}`}</div>
-                  <div className="text-sm">Price: {currency(it.sell_price || 0)}</div>
+                  <div className="text-sm">
+                    Price: {
+                      (it.discount_type && it.discount_value != null && Number(it.discount_value) !== 0)
+                      ? (
+                        (() => {
+                          const oldP = Number(it.sell_price || 0)
+                          let newP = oldP
+                          let savings = 0
+                          let suffix = ''
+                          if (String(it.discount_type) === 'percent') {
+                            const pct = Number(it.discount_value || 0)
+                            newP = Math.max(0, Math.round((oldP * (1 - pct / 100)) * 100) / 100)
+                            savings = oldP - newP
+                            suffix = ` (${pct}% off)`
+                          } else if (String(it.discount_type) === 'fixed') {
+                            const amt = Number(it.discount_value || 0)
+                            newP = Math.max(0, Math.round((oldP - amt) * 100) / 100)
+                            savings = oldP - newP
+                            suffix = ` (${currency(savings)} off)`
+                          }
+                          return (
+                            <span>
+                              <span className="text-gray-500 line-through mr-2">{currency(oldP)}</span>
+                              <span className="font-semibold">{currency(newP)}</span>
+                              <span className="ml-2 text-sm text-green-600">{suffix || ` - ${currency(savings)}`}</span>
+                            </span>
+                          )
+                        })()
+                      ) : (
+                        <span>{currency(it.sell_price || 0)}</span>
+                      )
+                    }
+                  </div>
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
