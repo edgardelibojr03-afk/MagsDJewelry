@@ -100,6 +100,11 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
+    // Map common DB check-constraint errors to friendly messages for clients
+    const msg = String(err?.message || '')
+    if (msg.includes('reserved_not_exceed_total') || msg.includes('violates check constraint')) {
+      return res.status(400).json({ error: 'Cannot reserve more than the available stock for this item.' })
+    }
     return res.status(500).json({ error: err.message })
   }
 }
