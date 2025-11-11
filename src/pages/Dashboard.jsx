@@ -109,7 +109,18 @@ export default function Dashboard() {
       else {
         const arr = res.items || []
         setItems(arr)
-        const lows = arr.filter((it)=> it.restock_threshold != null && Number(it.total_quantity||0) <= Number(it.restock_threshold||0))
+        // Compute low stock by two criteria:
+        // 1) total_quantity <= restock_threshold
+        // 2) (reserved_quantity - available) >= restock_threshold
+        const lows = arr.filter((it) => {
+          const thr = it.restock_threshold != null && it.restock_threshold !== '' ? Number(it.restock_threshold) : null
+          if (thr == null) return false
+          const total = Number(it.total_quantity || 0)
+          const reserved = Number(it.reserved_quantity || 0)
+          const available = Math.max(0, total - reserved)
+          const deficit = Math.max(0, reserved - available)
+          return total <= thr || deficit >= thr
+        })
         setLowStock(lows)
       }
     } catch (err) {
@@ -511,6 +522,24 @@ export default function Dashboard() {
                           {it.karat && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.karat}</span>}
                         </div>
                       )}
+                      {/* Restock notification badge */}
+                      {(() => {
+                        const thr = it.restock_threshold != null && it.restock_threshold !== '' ? Number(it.restock_threshold) : null
+                        const total = Number(it.total_quantity || 0)
+                        const reserved = Number(it.reserved_quantity || 0)
+                        const available = Math.max(0, total - reserved)
+                        const deficit = Math.max(0, reserved - available)
+                        const needs = thr != null && (total <= thr || deficit >= thr)
+                        if (needs) {
+                          return (
+                            <div className="mt-2">
+                              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">Restock needed</span>
+                              <span className="ml-2 text-xs text-gray-600">Threshold: {thr} • Qty: {total} • Reserved: {reserved}</span>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
                       <div className="text-sm text-gray-600">Qty: {Number(it.total_quantity||0).toLocaleString()} • Reserved: {Number(it.reserved_quantity||0).toLocaleString()}</div>
                       <div className="text-sm">{currency(it.sell_price)}</div>
                       <div className="mt-2 flex flex-wrap gap-2 items-center">

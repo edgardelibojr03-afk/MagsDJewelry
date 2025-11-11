@@ -135,6 +135,13 @@ export default function Products() {
                 <img src={it.image_url || '/vite.svg'} alt={it.name} className="w-full h-56 object-cover" />
                 <div className="p-4">
                   <div className="font-semibold text-lg">{it.name}</div>
+                  {(it.category_type || it.gold_type || it.karat) && (
+                    <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                      {it.category_type && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.category_type}</span>}
+                      {it.gold_type && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.gold_type}</span>}
+                      {it.karat && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded border">{it.karat}</span>}
+                    </div>
+                  )}
                   <div className="text-sm text-gray-600">{queued ? 'Queued reservations allowed' : `Available: ${available}`}</div>
                   <div className="text-sm">
                     Price: {
