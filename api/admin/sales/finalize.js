@@ -76,7 +76,22 @@ export default async function handler(req, res) {
     await admin.from('reservations').delete().eq('user_id', user_id)
     // Handle payment/layaway details
     let patch = { total }
-    const pm = (payment_method || 'full').toLowerCase()
+    // Accept payment_method as string ('full'|'layaway') or numeric index (0 => full, 1 => layaway)
+    let pm = 'full'
+    try {
+      if (payment_method === undefined || payment_method === null) {
+        pm = 'full'
+      } else if (typeof payment_method === 'number' || (!isNaN(Number(payment_method)) && String(payment_method).trim() !== '')) {
+        // treat numeric or numeric-string as index
+        const idx = Number(payment_method)
+        pm = idx === 1 ? 'layaway' : 'full'
+      } else {
+        pm = String(payment_method).toLowerCase()
+      }
+    } catch (e) {
+      pm = String(payment_method || 'full').toLowerCase()
+    }
+
     if (pm === 'layaway') {
       const months = Math.max(6, Number(layaway_months || 6))
       const down = Number((total * 0.05).toFixed(2))
