@@ -86,10 +86,11 @@ export default async function handler(req, res) {
     } else {
       patch = { ...patch, payment_method: 'full', layaway_months: null, downpayment: 0, amount_receivable: 0, monthly_payment: 0 }
     }
-    await admin.from('sales').update(patch).eq('id', sale.id)
+    const { data: updatedSale, error: updErr } = await admin.from('sales').update(patch).eq('id', sale.id).select('*').single()
+    if (updErr) return res.status(500).json({ error: updErr.message })
 
     // TODO: Send simple email receipt via an email provider (e.g., Resend, SendGrid). Placeholder response for now.
-  return res.status(200).json({ ok: true, total, sale_id: sale.id })
+    return res.status(200).json({ ok: true, total, sale_id: sale.id, sale: updatedSale })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }
