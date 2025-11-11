@@ -51,6 +51,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ sale, lines })
     }
 
+    // Temporary debug: log sale + lines so we can confirm what the PDF
+    // generator is seeing when the user reports "invoice shows full"
+    try {
+      console.log('admin/sales/invoice - generating PDF for sale:', sale?.id)
+      console.log('admin/sales/invoice - sale row:', sale)
+      console.log('admin/sales/invoice - sale lines:', lines)
+    } catch (e) {}
+
     // Fetch customer info and admin (finalized by)
     let customerEmail = ''
     let customerName = ''
