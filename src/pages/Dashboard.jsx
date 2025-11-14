@@ -856,11 +856,18 @@ export default function Dashboard() {
                               onClick={async()=>{
                                 try {
                                   const token = session?.access_token
+                                  if (!token) { alert('Please sign in as an admin to download refund receipts'); return }
+                                  // debug: indicate action started
+                                  console.log('Dashboard: request refund receipts for sale', s.id)
                                   // fetch refunds for this sale, pick the most recent and download its refund receipt
                                   const rResp = await fetch(`/api/admin/sales/refunds_for_sale?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
-                                  const rj = await rResp.json()
-                                  if (!rResp.ok || !Array.isArray(rj.refunds) || rj.refunds.length === 0) throw new Error('No refund records found for this sale')
+                                  const rj = await rResp.json().catch(()=>null)
+                                  if (!rResp.ok || !rj || !Array.isArray(rj.refunds) || rj.refunds.length === 0) {
+                                    alert('No refund records found for this sale')
+                                    return
+                                  }
                                   const rid = rj.refunds[0].id
+                                  console.log('Dashboard: found refund id', rid)
                                   const resp = await fetch(`/api/admin/sales/refund_invoice?refund_id=${encodeURIComponent(rid)}`, { headers: { Authorization: `Bearer ${token}` } })
                                   if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
                                   const blob = await resp.blob()
@@ -872,7 +879,12 @@ export default function Dashboard() {
                                   a.click()
                                   a.remove()
                                   URL.revokeObjectURL(url)
-                                } catch (e) { setError(e.message) }
+                                } catch (e) {
+                                  console.error('Dashboard: refund receipt error', e)
+                                  // surface error conspicuously
+                                  alert(e?.message || String(e))
+                                  setError(e?.message || String(e))
+                                }
                               }}
                               className="px-3 py-1 bg-yellow-600 text-white rounded"
                             >Refund Receipt</button>
