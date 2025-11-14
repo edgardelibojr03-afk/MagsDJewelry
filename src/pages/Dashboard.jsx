@@ -147,6 +147,30 @@ export default function Dashboard() {
     }
   }
 
+  const handleInventoryReport = async () => {
+    setError('')
+    try {
+      const token = session?.access_token
+      if (!token) return setError('Please login as an admin')
+      const resp = await fetch('/api/admin/reports/inventory', { headers: { Authorization: `Bearer ${token}` } })
+      if (!resp.ok) {
+        const j = await resp.json().catch(()=>null)
+        throw new Error((j && j.error) ? j.error : `Failed to generate report (${resp.status})`)
+      }
+      const blob = await resp.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inventory_report.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message || String(err))
+    }
+  }
+
   const loadUserSalesHistory = async (uid) => {
     try {
       const token = session?.access_token
@@ -333,6 +357,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={()=> setShowItemFilters(true)} className="px-4 py-2 rounded bg-gray-200">Filters</button>
+              <button onClick={handleInventoryReport} className="px-4 py-2 rounded bg-blue-600 text-white">Inventory report</button>
               <button onClick={()=>{ setShowOnlyRestock((s)=>!s) }} className={`px-4 py-2 rounded ${showOnlyRestock ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>{showOnlyRestock ? 'Showing restock' : 'Show only restock'}</button>
               <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply</button>
               <button onClick={()=>{ setItemFilters({ q:'', category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
