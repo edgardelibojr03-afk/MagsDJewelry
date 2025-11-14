@@ -44,8 +44,15 @@ export default async function handler(req, res) {
       .eq('refund_id', refund_id)
     if (itErr) return res.status(500).json({ error: itErr.message })
 
-    // Fetch related sale and customer
-    const { data: sale } = await admin.from('sales').select('*').eq('id', refund.sale_id).single().catch(()=>({ data: null }))
+    // Fetch related sale (avoid chaining .catch on the PostgREST builder — use returned error)
+    let sale = null
+    try {
+      const { data: _sale, error: saleErr } = await admin.from('sales').select('*').eq('id', refund.sale_id).single()
+      if (!saleErr) sale = _sale
+    } catch (e) {
+      // in case of unexpected runtime error keep sale=null
+      sale = null
+    }
 
     // Customer info
     let customerEmail = ''
