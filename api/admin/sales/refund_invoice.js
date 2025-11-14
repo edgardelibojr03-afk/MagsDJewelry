@@ -167,7 +167,17 @@ export default async function handler(req, res) {
     y -= 8
     page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
     y -= 16
-    drawText(`Refund Total: ${php(total)}`, colLine, y, { bold: true })
+    // Right-align the refund total so it always sits within the right margin
+    try {
+      const totalText = `Refund Total: ${php(total)}`
+      const size = 12
+      const textWidth = (fontBold && typeof fontBold.widthOfTextAtSize === 'function') ? fontBold.widthOfTextAtSize(totalText, size) : totalText.length * 6
+      const xPos = Math.max(colLine, width - margin - textWidth)
+      page.drawText(totalText, { x: xPos, y, size, font: fontBold, color: rgb(0,0,0) })
+    } catch (e) {
+      // Fallback to previous behavior
+      drawText(`Refund Total: ${php(total)}`, colLine, y, { bold: true })
+    }
 
     const pdfBytes = await pdfDoc.save()
     res.setHeader('Content-Type', 'application/pdf')
