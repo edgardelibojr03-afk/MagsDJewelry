@@ -56,7 +56,13 @@ export function AuthProvider({ children }) {
   }
 
   const signInWithProvider = async (provider) => {
-    return supabase.auth.signInWithOAuth({ provider })
+    // Use a configurable redirect URL when available (Vite env or global deploy var).
+    // Defaults to the current origin so local dev still works.
+    const redirectTo = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_APP_URL)
+      ? import.meta.env.VITE_APP_URL
+      : (typeof window !== 'undefined' && window.__DEPLOY_URL) ? window.__DEPLOY_URL : (typeof window !== 'undefined' ? window.location.origin : undefined)
+    const opts = redirectTo ? { redirectTo } : undefined
+    return supabase.auth.signInWithOAuth({ provider, options: opts })
   }
 
   const signOut = async () => {
