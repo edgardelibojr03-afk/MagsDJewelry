@@ -169,11 +169,15 @@ export default async function handler(req, res) {
     y -= 16
     // Right-align the refund total so it always sits within the right margin
     try {
-      const totalText = `Refund Total: ${php(total)}`
-      const size = 12
-      const textWidth = (fontBold && typeof fontBold.widthOfTextAtSize === 'function') ? fontBold.widthOfTextAtSize(totalText, size) : totalText.length * 6
-      const xPos = Math.max(colLine, width - margin - textWidth)
-      page.drawText(totalText, { x: xPos, y, size, font: fontBold, color: rgb(0,0,0) })
+  const totalText = `Refund Total: ${php(total)}`
+  const size = 12
+  const textWidth = (fontBold && typeof fontBold.widthOfTextAtSize === 'function') ? fontBold.widthOfTextAtSize(totalText, size) : totalText.length * 6
+  // Prefer placing at a bit left of the column marker so large amounts don't overflow the page.
+  // Compute candidate x so the text fits inside the right margin, but no further right than colLine-20.
+  const rightFitX = width - margin - textWidth - 10
+  const preferredX = colLine - 20
+  const xPos = Math.max(margin, Math.min(preferredX, rightFitX))
+  page.drawText(totalText, { x: xPos, y, size, font: fontBold, color: rgb(0,0,0) })
     } catch (e) {
       // Fallback to previous behavior
       drawText(`Refund Total: ${php(total)}`, colLine, y, { bold: true })
