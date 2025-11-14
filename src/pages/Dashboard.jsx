@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [salesTotal, setSalesTotal] = useState(0)
   const [lastSaleId, setLastSaleId] = useState('')
   const [recentSales, setRecentSales] = useState([])
+  const [historyFilter, setHistoryFilter] = useState('all') // 'all' | 'refunded'
   const [userSalesHistory, setUserSalesHistory] = useState([])
   const [paymentMethod, setPaymentMethod] = useState('full')
   const [layawayMonths, setLayawayMonths] = useState(6)
@@ -145,6 +146,18 @@ export default function Dashboard() {
     } catch (e) {
       // swallow errors in background; optional to surface
     }
+  }
+
+  // Helper to get refunds for a sale (returns array)
+  const fetchRefundsForSale = async (saleId) => {
+    try {
+      const token = session?.access_token
+      if (!token) return []
+      const resp = await fetch(`/api/admin/sales/refunds_for_sale?sale_id=${encodeURIComponent(saleId)}`, { headers: { Authorization: `Bearer ${token}` } })
+      const j = await resp.json()
+      if (!resp.ok) return []
+      return j.refunds || []
+    } catch (_) { return [] }
   }
 
   const handleInventoryReport = async () => {
@@ -806,6 +819,9 @@ export default function Dashboard() {
                             {s.status === 'voided' && (
                               <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">VOIDED</span>
                             )}
+                            {Number(s.refunded_total || 0) > 0 && (
+                              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">REFUNDED</span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-600">Sale ID: {s.id}</div>
                           <div className="text-xs text-gray-700 mt-1">
@@ -834,6 +850,54 @@ export default function Dashboard() {
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white rounded"
                           >Invoice</button>
+
+                          {Number(s.refunded_total || 0) > 0 && (
+                            <button
+                              onClick={async()=>{
+                                try {
+                                  const token = session?.access_token
+                                  // fetch refunds for this sale, pick the most recent and download its refund receipt
+                                  const rResp = await fetch(`/api/admin/sales/refunds_for_sale?sale_id=${encodeURIComponent(s.id)}`, { headers: { Authorization: `Bearer ${token}` } })
+                                  const rj = await rResp.json()
+                                  if (!rResp.ok || !Array.isArray(rj.refunds) || rj.refunds.length === 0) throw new Error('No refund records found for this sale')
+                                  const rid = rj.refunds[0].id
+                                  const resp = await fetch(`/api/admin/sales/refund_invoice?refund_id=${encodeURIComponent(rid)}`, { headers: { Authorization: `Bearer ${token}` } })
+                                  if (!resp.ok) { const j = await resp.json().catch(()=>({})); throw new Error(j?.error || `Failed (${resp.status})`) }
+                                  const blob = await resp.blob()
+                                  const url = URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `refund_${rid}.pdf`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  a.remove()
+                                  URL.revokeObjectURL(url)
+                                } catch (e) { setError(e.message) }
+                              }}
+                              className="px-3 py-1 bg-yellow-600 text-white rounded"
+                            >Refund Receipt</button>
+                          )}
+
+                          <button
+                            disabled={s.status === 'voided'}
+                            onClick={async()=>{
+                              const confirmVoid = window.confirm('Void this sale and restock all items? This creates a full refund record.')
+                              if (!confirmVoid) return
+                              try {
+                                const token = session?.access_token
+                                const resp = await fetch('/api/admin/sales/refund', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ sale_id: s.id, full: true, reason: 'Admin void' })
+                                })
+                                const j = await resp.json()
+                                if (!resp.ok || j.error) throw new Error(j.error || `Failed (${resp.status})`)
+                                await loadUserSalesHistory(selectedUserId)
+                                await loadItems()
+                              } catch (e) { setError(e.message) }
+                            }}
+                            className={`px-3 py-1 rounded ${s.status === 'voided' ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-red-600 text-white'}`}
+                          >Void</button>
                         </div>
                       </div>
                     ))}
@@ -911,12 +975,21 @@ export default function Dashboard() {
           )}
           {tab === 'history' && (
             <div className="bg-white p-4 rounded shadow">
-              <div className="font-semibold mb-2">Recent sales</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold">Recent sales</div>
+                <div className="flex items-center gap-2">
+                  <button className={`px-3 py-1 rounded ${historyFilter==='all' ? 'bg-black text-white' : 'bg-gray-100'}`} onClick={()=>setHistoryFilter('all')}>All</button>
+                  <button className={`px-3 py-1 rounded ${historyFilter==='refunded' ? 'bg-black text-white' : 'bg-gray-100'}`} onClick={()=>setHistoryFilter('refunded')}>Refunded</button>
+                </div>
+              </div>
               {recentSales.length === 0 ? (
                 <p className="text-sm text-gray-600">No recent sales.</p>
               ) : (
                 <div className="grid gap-2 max-h-96 overflow-auto">
-                  {recentSales.map((s) => (
+                  {recentSales.filter((s) => {
+                      if (historyFilter === 'refunded') return Number(s.refunded_total || 0) > 0
+                      return true
+                    }).map((s) => (
                     <div key={s.id} className="flex items-center justify-between border rounded p-2">
                       <div>
                         <div className="font-medium flex items-center gap-2">
@@ -932,7 +1005,7 @@ export default function Dashboard() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                         <button
                           onClick={async()=>{
                             try {
