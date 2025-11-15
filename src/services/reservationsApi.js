@@ -24,10 +24,12 @@ export async function cancelAllReservations({ token }) {
 }
 
 export async function cancelReservation({ token }, { reservation_id, item_id } = {}) {
-  // Accept either reservation_id or item_id
-  const params = reservation_id ? `reservation_id=${encodeURIComponent(reservation_id)}` : (item_id ? `item_id=${encodeURIComponent(item_id)}` : '')
-  const url = params ? `/api/reservations?action=cancel&${params}` : `/api/reservations?action=cancel`
-  const res = await fetch(url, { method: 'POST', headers: authHeaders(token) })
+  // Accept either reservation_id or item_id. Use POST with a JSON body so
+  // server-side handler (which reads action from body on POST) recognizes it.
+  const body = { action: 'cancel' }
+  if (reservation_id) body.reservation_id = reservation_id
+  if (item_id) body.item_id = item_id
+  const res = await fetch('/api/reservations', { method: 'POST', headers: authHeaders(token, true), body: JSON.stringify(body) })
   const { safeJson } = await import('./fetchHelpers')
   return safeJson(res)
 }
