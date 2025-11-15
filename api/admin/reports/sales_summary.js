@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 async function authorize(req, admin) {
   const auth = req.headers['authorization'] || req.headers['Authorization']
@@ -81,6 +82,74 @@ export default async function handler(req, res) {
 
     // Convert to array sorted by label (lexicographic ok for daily/monthly keys)
     const summary = Object.keys(buckets).sort().map((k) => ({ period: k, gross: Number(buckets[k].gross.toFixed(2)), net: Number(buckets[k].net.toFixed(2)) }))
+
+    // If PDF requested, render similar to inventory report layout
+    const fmt = String(req.query?.format || '').toLowerCase()
+    if (fmt === 'pdf') {
+      const SHOP_NAME = process.env.SHOP_NAME || 'MagsD Jewelry'
+      const tz = process.env.TIMEZONE || 'Asia/Manila'
+      const pdfDoc = await PDFDocument.create()
+      let page = pdfDoc.addPage([842, 595]) // landscape A4
+      let { width, height } = page.getSize()
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+      const margin = 40
+      let y = height - margin
+
+      const drawText = (text, x, yy, opts = {}) => {
+        page.drawText(String(text ?? ''), { x, y: yy, size: opts.size || 10, font: opts.bold ? fontBold : font, color: opts.color || rgb(0,0,0) })
+      }
+
+      const php = (n) => `PHP ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+      // Header
+      drawText(SHOP_NAME, margin, y, { size: 16, bold: true })
+      drawText('Sales Summary', margin + 300, y, { size: 16, bold: true })
+      y -= 22
+      drawText(`Generated: ${new Date().toLocaleString('en-PH', { timeZone: tz })} ${tz}`, margin, y)
+      y -= 18
+
+      // Table header
+      const colPeriod = margin
+      const colGross = 300
+      const colNet = 460
+      drawText('Period', colPeriod, y, { bold: true })
+      drawText('Gross', colGross, y, { bold: true })
+      drawText('Net', colNet, y, { bold: true })
+      y -= 12
+      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
+      y -= 10
+
+      let grandGross = 0
+      let grandNet = 0
+      for (const row of summary) {
+        if (y < 60) {
+          page = pdfDoc.addPage([842, 595])
+          const sz = page.getSize(); width = sz.width; height = sz.height; y = height - margin
+        }
+        drawText(row.period, colPeriod, y)
+        drawText(php(row.gross), colGross, y)
+        drawText(php(row.net), colNet, y)
+        grandGross += Number(row.gross || 0)
+        grandNet += Number(row.net || 0)
+        y -= 14
+      }
+
+      y -= 10
+      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) })
+      y -= 18
+      drawText('Total Gross:', colGross, y, { bold: true })
+      drawText(php(grandGross), colNet, y, { bold: true })
+      y -= 16
+      drawText('Total Net:', colGross, y, { bold: true })
+      drawText(php(grandNet), colNet, y, { bold: true })
+
+      const pdfBytes = await pdfDoc.save()
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="sales_summary.pdf"`)
+      return res.status(200).send(Buffer.from(pdfBytes))
+    }
+
     return res.status(200).json({ summary, total_gross: Number(totalGross.toFixed(2)), total_net: Number(totalNet.toFixed(2)) })
   } catch (err) {
     return res.status(500).json({ error: err.message })

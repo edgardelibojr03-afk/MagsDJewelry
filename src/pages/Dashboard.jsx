@@ -11,7 +11,8 @@ import ConfirmModal from '../components/ConfirmModal'
 export default function Dashboard() {
   const { session, loading: authLoading } = useAuth()
   const [users, setUsers] = useState([])
-  const [userSearch, setUserSearch] = useState('')
+  const [salesUserSearch, setSalesUserSearch] = useState('')
+  const [usersSearch, setUsersSearch] = useState('')
   const [showOnlyWithSales, setShowOnlyWithSales] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -55,9 +56,9 @@ export default function Dashboard() {
         setUsers([])
       } else {
         let arr = json.users?.users || json.users || []
-        // apply client-side search
-        if (userSearch && String(userSearch || '').trim() !== '') {
-          const q = String(userSearch || '').toLowerCase()
+        // apply client-side search (Sales tab uses salesUserSearch)
+        if (salesUserSearch && String(salesUserSearch || '').trim() !== '') {
+          const q = String(salesUserSearch || '').toLowerCase()
           arr = arr.filter((u) => (u.email || '').toLowerCase().includes(q) || ((u.user_metadata?.full_name || '')).toLowerCase().includes(q))
         }
         // If filter by users with sales is enabled, load recent sales and filter
@@ -86,8 +87,40 @@ export default function Dashboard() {
     }
   }
 
+  // Simple users-list fetch for the Users tab (no date filters)
+  const fetchUsersList = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const token = session?.access_token
+      if (!token) {
+        setLoading(false)
+        setError('Please login as an admin to load users.')
+        setUsers([])
+        return
+      }
+      const json = await fetchUsersFromAdmin({ token })
+      if (json.error) {
+        setError(json.error)
+        setUsers([])
+      } else {
+        let arr = json.users?.users || json.users || []
+        if (usersSearch && String(usersSearch || '').trim() !== '') {
+          const q = String(usersSearch || '').toLowerCase()
+          arr = arr.filter((u) => (u.email || '').toLowerCase().includes(q) || ((u.user_metadata?.full_name || '')).toLowerCase().includes(q))
+        }
+        setUsers(arr)
+      }
+    } catch (err) {
+      setError(err.message)
+      setUsers([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // Live-search while typing (debounced)
+    // Live-search while typing (debounced) for Sales tab
     let t = null
     if (tab === 'sales' && !authLoading && session?.access_token) {
       t = setTimeout(() => {
@@ -96,13 +129,23 @@ export default function Dashboard() {
     }
     return () => { if (t) clearTimeout(t) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userSearch, showOnlyWithSales, startDate, endDate, tab, session?.access_token, authLoading])
+  }, [salesUserSearch, showOnlyWithSales, startDate, endDate, tab, session?.access_token, authLoading])
+
+  useEffect(() => {
+    // Debounced users-search for Users tab
+    let t2 = null
+    if (tab === 'users' && !authLoading && session?.access_token) {
+      t2 = setTimeout(() => { fetchUsersList() }, 300)
+    }
+    return () => { if (t2) clearTimeout(t2) }
+  }, [usersSearch, tab, session?.access_token, authLoading])
 
   useEffect(() => {
     // Fetch when auth is ready and we have a token
     if (!authLoading && session?.access_token) {
       if (tab === 'sales') fetchUsers()
-      if (tab === 'items') loadItems()
+        if (tab === 'items') loadItems()
+        if (tab === 'users') fetchUsersList()
       if (tab === 'sales') {
         if (selectedUserId) loadUserReservations(selectedUserId)
         if (selectedUserId) loadUserSalesHistory(selectedUserId)
@@ -266,7 +309,7 @@ export default function Dashboard() {
     setError('')
   const token = session?.access_token
     try {
-      if (form.id) {
+        if (form.id) {
         const res = await updateUserAdmin({ token }, {
           id: form.id,
           email: form.email || undefined,
@@ -277,7 +320,7 @@ export default function Dashboard() {
         if (res.error) setError(res.error)
         else {
           setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
-          await fetchUsers()
+          await fetchUsersList()
         }
       } else {
     if (!form.email || !form.password) return setError('Email and password required to create user')
@@ -285,7 +328,7 @@ export default function Dashboard() {
         if (res.error) setError(res.error)
         else {
           setForm({ id: '', email: '', name: '', password: '', isAdmin: false })
-          await fetchUsers()
+          await fetchUsersList()
         }
       }
     } catch (err) {
@@ -417,20 +460,27 @@ export default function Dashboard() {
                     if (!token) return setError('Please login as an admin')
                     const sel = document.getElementById('sales-report-period')
                     const period = sel ? sel.value : 'monthly'
-                    const resp = await fetch(`/api/admin/reports/sales_summary?period=${encodeURIComponent(period)}`, { headers: { Authorization: `Bearer ${token}` } })
-                    const j = await resp.json()
-                    if (!resp.ok) throw new Error(j?.error || `Failed to fetch report (${resp.status})`)
-                    const blob = new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' })
+                    // include date range if provided (use dashboard-level startDate/endDate)
+                    const params = [`period=${encodeURIComponent(period)}`]
+                    if (startDate) params.push(`start=${encodeURIComponent(startDate)}`)
+                    if (endDate) params.push(`end=${encodeURIComponent(endDate)}`)
+                    params.push('format=pdf')
+                    const resp = await fetch(`/api/admin/reports/sales_summary?${params.join('&')}`, { headers: { Authorization: `Bearer ${token}` } })
+                    if (!resp.ok) {
+                      const j = await resp.json().catch(()=>({}))
+                      throw new Error(j?.error || `Failed to fetch report (${resp.status})`)
+                    }
+                    const blob = await resp.blob()
                     const url = URL.createObjectURL(blob)
                     const a = document.createElement('a')
                     a.href = url
-                    a.download = `sales_summary_${period}.json`
+                    a.download = `sales_summary_${period}.pdf`
                     document.body.appendChild(a)
                     a.click()
                     a.remove()
                     URL.revokeObjectURL(url)
                   } catch (e) { setError(e.message || String(e)) }
-                }} className="px-4 py-2 rounded bg-indigo-600 text-white">Download sales summary</button>
+                }} className="px-4 py-2 rounded bg-indigo-600 text-white">Download sales summary (PDF)</button>
               </div>
               <button onClick={()=>{ setShowOnlyRestock((s)=>!s) }} className={`px-4 py-2 rounded ${showOnlyRestock ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>{showOnlyRestock ? 'Showing restock' : 'Show only restock'}</button>
               <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply</button>
@@ -500,7 +550,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="text-lg font-semibold">Select a user</div>
             <div className="flex-1 flex items-center gap-2 ml-4">
-              <input className="border p-2 rounded w-64" placeholder="Search email or name" value={userSearch} onChange={(e)=>setUserSearch(e.target.value)} />
+              <input className="border p-2 rounded w-64" placeholder="Search email or name" value={salesUserSearch} onChange={(e)=>setSalesUserSearch(e.target.value)} />
               <input type="date" className="border p-2 rounded" value={startDate} onChange={(e)=>setStartDate(e.target.value)} />
               <input type="date" className="border p-2 rounded" value={endDate} onChange={(e)=>setEndDate(e.target.value)} />
               <label className="flex items-center gap-2">
@@ -532,19 +582,25 @@ export default function Dashboard() {
       )}
 
       {tab === 'users' && (
-      <form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input className="border p-2 rounded" placeholder="Email" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
+      <div className="bg-white p-4 rounded shadow mb-6">
+        <div className="mb-3">
+          <label className="block text-xs text-gray-600 mb-1">Search users</label>
+          <input className="border p-2 rounded w-full max-w-md" placeholder="Search email or name" value={usersSearch} onChange={(e)=>setUsersSearch(e.target.value)} />
+        </div>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input className="border p-2 rounded" placeholder="Email" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Full name" value={form.name} onChange={(e)=>setForm({ ...form, name: e.target.value })} />
         <input className="border p-2 rounded" placeholder="Password" type="password" value={form.password} onChange={(e)=>setForm({ ...form, password: e.target.value })} />
         <label className="flex items-center gap-2 md:col-span-4">
           <input type="checkbox" checked={form.isAdmin} onChange={(e)=>setForm({ ...form, isAdmin: e.target.checked })} />
           <span>Make admin</span>
         </label>
-        <div className="md:col-span-4 flex gap-2">
-          <button className="px-4 py-2 rounded bg-blue-600 text-white">{form.id ? 'Update User' : 'Create User'}</button>
-          <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setForm({ id: '', email: '', name: '', password: '', isAdmin: false })}>Clear</button>
-        </div>
-      </form>
+          <div className="md:col-span-4 flex gap-2">
+            <button className="px-4 py-2 rounded bg-blue-600 text-white">{form.id ? 'Update User' : 'Create User'}</button>
+            <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={()=>setForm({ id: '', email: '', name: '', password: '', isAdmin: false })}>Clear</button>
+          </div>
+        </form>
+      </div>
       )}
 
       {tab === 'items' && (
