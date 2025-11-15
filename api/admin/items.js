@@ -131,10 +131,19 @@ export default async function handler(req, res) {
     if (action === 'delete') {
       const { id, force } = req.body || {}
       if (!id) return res.status(400).json({ error: 'id is required' })
-      // If force flag is set, remove referencing reservations first
+      // If force flag is set, remove common referencing rows first (reservations,
+      // refunds, sale_items, restocks, reviews) so item deletion will succeed.
       if (force === true) {
-        const { error: rErr } = await admin.from('reservations').delete().eq('item_id', id)
-        if (rErr) return res.status(500).json({ error: rErr.message })
+        try {
+          await admin.from('reservations').delete().eq('item_id', id)
+        } catch (e) {
+          return res.status(500).json({ error: `Failed to delete reservations: ${e.message || e}` })
+        }
+        // Attempt to delete other referencing rows which may block deletion.
+        try { await admin.from('refund_items').delete().eq('item_id', id) } catch (e) {}
+        try { await admin.from('sale_items').delete().eq('item_id', id) } catch (e) {}
+        try { await admin.from('restocks').delete().eq('item_id', id) } catch (e) {}
+        try { await admin.from('product_reviews').delete().eq('item_id', id) } catch (e) {}
       }
       const { error } = await admin.from('items').delete().eq('id', id)
       if (error) {
