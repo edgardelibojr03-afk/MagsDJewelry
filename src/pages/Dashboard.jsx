@@ -400,21 +400,35 @@ export default function Dashboard() {
   }
 
   const handleItemDelete = async (id) => {
-    const token = session?.access_token
-    const res = await deleteItem({ token }, id)
-    if (res?.error) {
-      if (res.code === 'FK_VIOLATION') {
-        const ok = window.confirm('This item has existing reservations. Delete those reservations and then delete the item?')
-        if (ok) {
-          const res2 = await deleteItem({ token }, id, { force: true })
-          if (res2?.error) setError(res2.error)
-          else await loadItems()
+    try {
+      const token = session?.access_token
+      const res = await deleteItem({ token }, id)
+      if (res?.error) {
+        // If reservations exist, offer force-delete prompt
+        if (res.code === 'FK_VIOLATION') {
+          const ok = window.confirm('This item has existing reservations. Delete those reservations and then delete the item?')
+          if (ok) {
+            const res2 = await deleteItem({ token }, id, { force: true })
+            if (res2?.error) {
+              setError(res2.error)
+              alert(`Delete failed: ${res2.error}`)
+            } else {
+              await loadItems()
+              setError('')
+            }
+          }
+        } else {
+          setError(res.error)
+          alert(`Delete failed: ${res.error}`)
         }
       } else {
-        setError(res.error)
+        // Refresh the items list to keep UI consistent with server state
+        await loadItems()
+        setError('')
       }
-    } else {
-      setItems((arr) => arr.filter((x) => x.id !== id))
+    } catch (err) {
+      setError(err.message || String(err))
+      alert(`Delete failed: ${err.message || String(err)}`)
     }
   }
 
