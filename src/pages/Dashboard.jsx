@@ -11,6 +11,10 @@ import ConfirmModal from '../components/ConfirmModal'
 export default function Dashboard() {
   const { session, loading: authLoading } = useAuth()
   const [users, setUsers] = useState([])
+  const [userSearch, setUserSearch] = useState('')
+  const [showOnlyWithSales, setShowOnlyWithSales] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [form, setForm] = useState({ id: '', email: '', name: '', password: '', isAdmin: false })
@@ -50,7 +54,28 @@ export default function Dashboard() {
         setError(json.error)
         setUsers([])
       } else {
-        const arr = json.users?.users || json.users || []
+        let arr = json.users?.users || json.users || []
+        // apply client-side search
+        if (userSearch && String(userSearch || '').trim() !== '') {
+          const q = String(userSearch || '').toLowerCase()
+          arr = arr.filter((u) => (u.email || '').toLowerCase().includes(q) || ((u.user_metadata?.full_name || '')).toLowerCase().includes(q))
+        }
+        // If filter by users with sales is enabled, load recent sales and filter
+        if (showOnlyWithSales) {
+          try {
+            // include optional date filters
+            const params = []
+            if (startDate) params.push(`start=${encodeURIComponent(startDate)}`)
+            if (endDate) params.push(`end=${encodeURIComponent(endDate)}`)
+            const url = '/api/admin/sales/history' + (params.length ? `?${params.join('&')}` : '')
+            const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+            const sj = await resp.json()
+            if (resp.ok && Array.isArray(sj.sales)) {
+              const usersWithSales = new Set((sj.sales || []).map((s) => s.user_id))
+              arr = arr.filter((u) => usersWithSales.has(u.id))
+            }
+          } catch (e) {}
+        }
         setUsers(arr)
       }
     } catch (err) {
@@ -62,9 +87,21 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    // Live-search while typing (debounced)
+    let t = null
+    if (tab === 'sales' && !authLoading && session?.access_token) {
+      t = setTimeout(() => {
+        fetchUsers()
+      }, 300)
+    }
+    return () => { if (t) clearTimeout(t) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userSearch, showOnlyWithSales, startDate, endDate, tab, session?.access_token, authLoading])
+
+  useEffect(() => {
     // Fetch when auth is ready and we have a token
     if (!authLoading && session?.access_token) {
-      if (tab === 'users') fetchUsers()
+      if (tab === 'sales') fetchUsers()
       if (tab === 'items') loadItems()
       if (tab === 'sales') {
         if (selectedUserId) loadUserReservations(selectedUserId)
@@ -356,11 +393,7 @@ export default function Dashboard() {
       </div>
   <h1 className="text-2xl font-bold mb-4">Admin — {tab === 'users' ? 'User Management' : tab === 'items' ? 'Item Management' : 'Sales Management'}</h1>
       {error && <p className="text-red-600 mb-4">{error}</p>}
-      {tab === 'users' && (
-        <div className="bg-white p-4 rounded shadow mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <button onClick={fetchUsers} className="px-4 py-2 rounded bg-black text-white">Load users</button>
-        </div>
-      )}
+      {/* Users tab search moved to Sales tab per request */}
       {tab === 'items' && (
         <>
           <div className="bg-white p-4 rounded shadow mb-2 flex flex-col sm:flex-row gap-3 items-end justify-between">
@@ -371,6 +404,34 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <button onClick={()=> setShowItemFilters(true)} className="px-4 py-2 rounded bg-gray-200">Filters</button>
               <button onClick={handleInventoryReport} className="px-4 py-2 rounded bg-blue-600 text-white">Inventory report</button>
+              <div className="flex items-center gap-2">
+                <select id="sales-report-period" className="border p-2 rounded" defaultValue="monthly">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly (start date)</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+                <button onClick={async ()=>{
+                  try {
+                    const token = session?.access_token
+                    if (!token) return setError('Please login as an admin')
+                    const sel = document.getElementById('sales-report-period')
+                    const period = sel ? sel.value : 'monthly'
+                    const resp = await fetch(`/api/admin/reports/sales_summary?period=${encodeURIComponent(period)}`, { headers: { Authorization: `Bearer ${token}` } })
+                    const j = await resp.json()
+                    if (!resp.ok) throw new Error(j?.error || `Failed to fetch report (${resp.status})`)
+                    const blob = new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `sales_summary_${period}.json`
+                    document.body.appendChild(a)
+                    a.click()
+                    a.remove()
+                    URL.revokeObjectURL(url)
+                  } catch (e) { setError(e.message || String(e)) }
+                }} className="px-4 py-2 rounded bg-indigo-600 text-white">Download sales summary</button>
+              </div>
               <button onClick={()=>{ setShowOnlyRestock((s)=>!s) }} className={`px-4 py-2 rounded ${showOnlyRestock ? 'bg-red-600 text-white' : 'bg-gray-200'}`}>{showOnlyRestock ? 'Showing restock' : 'Show only restock'}</button>
               <button onClick={loadItems} className="px-4 py-2 rounded bg-black text-white">Apply</button>
               <button onClick={()=>{ setItemFilters({ q:'', category_type:'', gold_type:'', karat:'' }); loadItems(); }} className="px-4 py-2 rounded bg-gray-200">Clear</button>
@@ -438,7 +499,18 @@ export default function Dashboard() {
         <div className="bg-white p-4 rounded shadow mb-6">
           <div className="flex items-center justify-between mb-3">
             <div className="text-lg font-semibold">Select a user</div>
-            <button onClick={fetchUsers} className="px-3 py-1.5 rounded bg-black text-white">Refresh users</button>
+            <div className="flex-1 flex items-center gap-2 ml-4">
+              <input className="border p-2 rounded w-64" placeholder="Search email or name" value={userSearch} onChange={(e)=>setUserSearch(e.target.value)} />
+              <input type="date" className="border p-2 rounded" value={startDate} onChange={(e)=>setStartDate(e.target.value)} />
+              <input type="date" className="border p-2 rounded" value={endDate} onChange={(e)=>setEndDate(e.target.value)} />
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={showOnlyWithSales} onChange={(e)=>setShowOnlyWithSales(e.target.checked)} />
+                <span className="text-sm">With sales</span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={fetchUsers} className="px-3 py-1.5 rounded bg-black text-white">Refresh users</button>
+            </div>
           </div>
           {users.length === 0 ? (
             <p className="text-sm text-gray-600">No users found.</p>
@@ -927,7 +999,10 @@ export default function Dashboard() {
                   {paymentMethod==='layaway' && (
                     <>
                       <label className="text-sm">Months</label>
-                      <input type="number" min={6} step={1} className="border p-1 rounded w-20" value={layawayMonths} onChange={(e)=>setLayawayMonths(Number(e.target.value||6))} />
+                      <select className="border p-1 rounded w-28" value={layawayMonths} onChange={(e)=>setLayawayMonths(Number(e.target.value||6))}>
+                        <option value={6}>6 months</option>
+                        <option value={8}>8 months</option>
+                      </select>
                     </>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { listReservations, reserveDelta, cancelAllReservations } from '../services/reservationsApi'
+import { cancelReservation } from '../services/reservationsApi'
 import { currency, formatDateTime, countdownTo } from '../utils/format'
 
 export default function Cart() {
@@ -87,6 +88,14 @@ export default function Cart() {
                   <button className="px-2 py-1 bg-gray-200 rounded" onClick={() => changeQty(r.item?.id, -1)}>−</button>
                   <span>{r.quantity}</span>
                   <button className="px-2 py-1 bg-gray-200 rounded" onClick={() => changeQty(r.item?.id, 1)}>+</button>
+                  <button className="px-2 py-1 bg-red-500 text-white rounded ml-4" onClick={async () => {
+                    try {
+                      const token = session?.access_token
+                      const resp = await cancelReservation({ token }, { reservation_id: r.id })
+                      if (resp.error) return setError(resp.error)
+                      await load()
+                    } catch (e) { setError(e.message) }
+                  }}>Cancel reservation</button>
                 </div>
               </div>
             </div>

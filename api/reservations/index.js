@@ -146,6 +146,32 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
+    if (action === 'cancel') {
+      // cancel a single reservation by reservation_id or item_id
+      const reservation_id = req.query?.reservation_id || req.body?.reservation_id
+      const item_id = req.query?.item_id || req.body?.item_id
+      if (!reservation_id && !item_id) return res.status(400).json({ error: 'reservation_id or item_id required' })
+      // find the reservation row
+      let q = admin.from('reservations').select('*').eq('user_id', user.id)
+      if (reservation_id) q = q.eq('id', reservation_id).maybeSingle()
+      else q = q.eq('item_id', item_id).maybeSingle()
+      const { data: row, error: rowErr } = await q
+      if (rowErr) return res.status(500).json({ error: rowErr.message })
+      if (!row) return res.status(404).json({ error: 'Reservation not found' })
+      // adjust reserved_quantity on items
+      try {
+        const { data: item } = await admin.from('items').select('reserved_quantity').eq('id', row.item_id).single()
+        const newReserved = Math.max(0, (item?.reserved_quantity || 0) - (row.quantity || 0))
+        await admin.from('items').update({ reserved_quantity: newReserved }).eq('id', row.item_id)
+      } catch (e) {
+        return res.status(500).json({ error: 'Failed to update item reserved count' })
+      }
+      // delete reservation
+      const { error: delErr } = await admin.from('reservations').delete().eq('id', row.id)
+      if (delErr) return res.status(500).json({ error: delErr.message })
+      return res.status(200).json({ ok: true })
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
     // Map common DB check-constraint errors to friendly messages for clients

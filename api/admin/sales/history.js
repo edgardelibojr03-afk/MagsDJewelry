@@ -28,10 +28,14 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    // Optional filter by user_id
+    // Optional filters: user_id, start, end
     const user_id = req.query?.user_id
+    const start = req.query?.start ? new Date(req.query.start) : null
+    const end = req.query?.end ? new Date(req.query.end) : null
     let q = admin.from('sales').select('*').order('created_at', { ascending: false }).limit(100)
     if (user_id) q = q.eq('user_id', user_id)
+    if (start) q = q.gte('created_at', start.toISOString())
+    if (end) q = q.lte('created_at', end.toISOString())
     const { data: sales, error } = await q
     if (error) return res.status(500).json({ error: error.message })
     const ids = (sales || []).map((s) => s.id)

@@ -22,3 +22,12 @@ export async function cancelAllReservations({ token }) {
   const { safeJson } = await import('./fetchHelpers')
   return safeJson(res)
 }
+
+export async function cancelReservation({ token }, { reservation_id, item_id } = {}) {
+  // Accept either reservation_id or item_id
+  const params = reservation_id ? `reservation_id=${encodeURIComponent(reservation_id)}` : (item_id ? `item_id=${encodeURIComponent(item_id)}` : '')
+  const url = params ? `/api/reservations?action=cancel&${params}` : `/api/reservations?action=cancel`
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(token) })
+  const { safeJson } = await import('./fetchHelpers')
+  return safeJson(res)
+}
