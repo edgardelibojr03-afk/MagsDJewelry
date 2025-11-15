@@ -402,27 +402,14 @@ export default function Dashboard() {
   const handleItemDelete = async (id) => {
     try {
       const token = session?.access_token
-      const res = await deleteItem({ token }, id)
+      const ok = window.confirm('Delete this item and ALL reservations referencing it (this will remove the item from users\' carts). Continue?')
+      if (!ok) return
+      // Force deletion: remove reservations first, then delete the item
+      const res = await deleteItem({ token }, id, { force: true })
       if (res?.error) {
-        // If reservations exist, offer force-delete prompt
-        if (res.code === 'FK_VIOLATION') {
-          const ok = window.confirm('This item has existing reservations. Delete those reservations and then delete the item?')
-          if (ok) {
-            const res2 = await deleteItem({ token }, id, { force: true })
-            if (res2?.error) {
-              setError(res2.error)
-              alert(`Delete failed: ${res2.error}`)
-            } else {
-              await loadItems()
-              setError('')
-            }
-          }
-        } else {
-          setError(res.error)
-          alert(`Delete failed: ${res.error}`)
-        }
+        setError(res.error)
+        alert(`Delete failed: ${res.error}`)
       } else {
-        // Refresh the items list to keep UI consistent with server state
         await loadItems()
         setError('')
       }
