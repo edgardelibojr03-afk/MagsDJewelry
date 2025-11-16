@@ -32,9 +32,35 @@ export default function ResetPassword() {
   useEffect(() => {
     let mounted = true
     const get = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (!mounted) return
-      setSession(data?.session ?? null)
+      // Try to obtain a recovery session from the URL first (handles
+      // links that include the access token in the URL fragment or query).
+      try {
+        // supabase-js v2 exposes `getSessionFromUrl` to parse tokens from
+        // the current window location and optionally store the session.
+        if (typeof supabase.auth.getSessionFromUrl === 'function') {
+          try {
+            const { data: urlData, error: urlErr } = await supabase.auth.getSessionFromUrl({ storeSession: true })
+            if (urlErr) {
+              // Not fatal — we'll still try to read existing session below
+              console.debug('getSessionFromUrl error', urlErr.message || urlErr)
+            } else if (urlData?.session) {
+              if (mounted) setSession(urlData.session)
+              // Clean the URL to remove tokens/fragments for aesthetics/security
+              try { window.history.replaceState({}, document.title, window.location.pathname + window.location.search) } catch (e) {}
+              return
+            }
+          } catch (e) {
+            console.debug('getSessionFromUrl threw', e)
+          }
+        }
+
+        // Fallback: try to read an existing stored session
+        const { data } = await supabase.auth.getSession()
+        if (!mounted) return
+        setSession(data?.session ?? null)
+      } catch (err) {
+        console.debug('session read error', err)
+      }
     }
     get()
 
