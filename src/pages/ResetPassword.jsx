@@ -57,7 +57,38 @@ export default function ResetPassword() {
         // Fallback: try to read an existing stored session
         const { data } = await supabase.auth.getSession()
         if (!mounted) return
-        setSession(data?.session ?? null)
+        if (data?.session) {
+          setSession(data.session)
+          return
+        }
+
+        // If no session was found, try a more permissive fallback: some hosts
+        // or email clients change whether tokens are placed in the hash or
+        // query. Parse both and, if tokens are present, set the session
+        // manually so the recovery flow proceeds.
+        try {
+          const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+          const queryParams = new URLSearchParams(window.location.search)
+          const access_token = hashParams.get('access_token') || queryParams.get('access_token')
+          const refresh_token = hashParams.get('refresh_token') || queryParams.get('refresh_token')
+          if (access_token || refresh_token) {
+            try {
+              const { data: setData, error: setErr } = await supabase.auth.setSession({ access_token, refresh_token })
+              if (setErr) {
+                console.debug('setSession error', setErr.message || setErr)
+              } else if (setData?.session) {
+                if (mounted) setSession(setData.session)
+                // Clean the URL to remove sensitive tokens
+                try { window.history.replaceState({}, document.title, window.location.pathname + window.location.search) } catch (e) {}
+                return
+              }
+            } catch (e) {
+              console.debug('setSession threw', e)
+            }
+          }
+        } catch (e) {
+          // ignore parsing errors and continue
+        }
       } catch (err) {
         console.debug('session read error', err)
       }
