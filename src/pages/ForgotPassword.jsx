@@ -13,9 +13,10 @@ export default function ForgotPassword() {
     setMessage(null)
     setLoading(true)
     try {
-      // Use a hash-based redirect so the emailed link lands inside the SPA
-      // and doesn't require server-side rewrites.
-      const redirectTo = `${window.location.origin}/#/reset-password`
+      // Use a clean path redirect so Supabase will append tokens in the
+      // fragment (e.g. `/reset-password#access_token=...`). A pre-mount
+      // rewrite in `src/main.jsx` will convert that to the SPA hash route.
+      const redirectTo = `${window.location.origin}/reset-password`
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) {
         setError(error.message)
