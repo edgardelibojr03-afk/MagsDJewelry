@@ -6,6 +6,7 @@ export default function Account() {
   const { user, signOut } = useAuth()
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [status, setStatus] = useState('')
 
   useEffect(() => {
@@ -24,10 +25,25 @@ export default function Account() {
   const changePassword = async (e) => {
     e.preventDefault()
     setStatus('')
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) setStatus(error.message)
-    else setStatus('Password updated')
-    setPassword('')
+    if (!currentPassword) return setStatus('Please enter your current password')
+    if (!password || password.length < 6) return setStatus('New password must be at least 6 characters')
+
+    try {
+      // Re-authenticate the user to verify the current password
+      const { data: signData, error: signErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+      if (signErr) return setStatus('Current password is incorrect')
+
+      // If re-authentication succeeded, update the password
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) setStatus(error.message)
+      else {
+        setStatus('Password updated')
+        setPassword('')
+        setCurrentPassword('')
+      }
+    } catch (err) {
+      setStatus(err.message || 'Unable to update password')
+    }
   }
 
   const deleteAccount = async () => {
@@ -66,6 +82,9 @@ export default function Account() {
 
       <form onSubmit={changePassword} className="bg-white p-4 rounded shadow mb-4">
         <h2 className="font-semibold mb-3">Change password</h2>
+        <label className="block text-sm mb-1">Current password</label>
+        <input type="password" className="w-full border p-2 rounded mb-3" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+        <label className="block text-sm mb-1">New password</label>
         <input type="password" className="w-full border p-2 rounded mb-3" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button className="bg-blue-600 text-white px-4 py-2 rounded">Update Password</button>
       </form>
