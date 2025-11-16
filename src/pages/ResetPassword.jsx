@@ -62,13 +62,24 @@ export default function ResetPassword() {
           return
         }
 
-        // If no session was found, try a more permissive fallback: some hosts
-        // or email clients change whether tokens are placed in the hash or
-        // query. Parse both and, if tokens are present, set the session
-        // manually so the recovery flow proceeds.
+        // If no session was found, try a permissive fallback: some hosts or
+        // email clients place tokens or error info in the hash or query. Parse
+        // both so we can either set the session (if tokens are present) or
+        // display a useful error message (e.g. OTP expired).
         try {
           const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
           const queryParams = new URLSearchParams(window.location.search)
+
+          // Check for Supabase-style error parameters first
+          const err = hashParams.get('error') || queryParams.get('error')
+          const errDesc = hashParams.get('error_description') || queryParams.get('error_description')
+          if (err) {
+            const text = errDesc ? decodeURIComponent(errDesc) : err
+            if (mounted) setError(text)
+            return
+          }
+
+          // Otherwise, try to find access/refresh tokens and set the session
           const access_token = hashParams.get('access_token') || queryParams.get('access_token')
           const refresh_token = hashParams.get('refresh_token') || queryParams.get('refresh_token')
           if (access_token || refresh_token) {
@@ -166,7 +177,15 @@ export default function ResetPassword() {
             <div className="text-sm text-red-500 mb-3">Password must be at least 6 characters</div>
           )}
 
-          {error && <p className="text-red-500 mb-3">{error}</p>}
+          {error && (
+            <div className="mb-3">
+              <p className="text-red-500">{error}</p>
+              <p className="text-sm text-gray-600 mt-2">If the link has expired you can request a new reset email.</p>
+              <div className="mt-2">
+                <a href="/#/forgot-password" className="text-blue-600 underline">Request new reset email</a>
+              </div>
+            </div>
+          )}
           {message && <p className="text-green-600 mb-3">{message}</p>}
 
           <div className="flex justify-end gap-2">
