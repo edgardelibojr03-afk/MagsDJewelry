@@ -13,10 +13,9 @@ export default function ForgotPassword() {
     setMessage(null)
     setLoading(true)
     try {
-      // Use the clean path so the emailed link points to `/reset-password`.
-      // A small fallback page `public/reset-password.html` will forward
-      // the browser to the SPA root preserving tokens to avoid 404s.
-      const redirectTo = `${window.location.origin}/reset-password`
+      // Use a hash-based redirect so the emailed link lands inside the SPA
+      // and doesn't require server-side rewrites.
+      const redirectTo = `${window.location.origin}/#/reset-password`
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) {
         setError(error.message)
