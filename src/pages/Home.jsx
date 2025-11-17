@@ -177,7 +177,8 @@ export default function Home() {
     ;(async () => {
       const { data, error } = await supabase
         .from('items')
-        .select('id,name,sell_price,image_url,created_at')
+        .select('id,name,sell_price,image_url,created_at,status')
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .limit(10)
       if (!cancelled) setArrivals(error ? [] : (data || []))
@@ -192,8 +193,9 @@ export default function Home() {
       try {
         const { data, error } = await supabase
           .from('items')
-          .select('id,name,sell_price,image_url,best_seller_rank')
+          .select('id,name,sell_price,image_url,best_seller_rank,status')
           .eq('is_best_seller', true)
+          .neq('status', 'archived')
           .order('best_seller_rank', { ascending: true })
           .limit(6)
         if (!cancelled) setBestSellers(error ? [] : (data || []))

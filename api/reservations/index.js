@@ -69,6 +69,10 @@ export default async function handler(req, res) {
       if (!item_id || !Number.isInteger(delta)) return res.status(400).json({ error: 'item_id and integer delta required' })
       const { data: item, error: itemErr } = await admin.from('items').select('*').eq('id', item_id).single()
       if (itemErr || !item) return res.status(404).json({ error: 'Item not found' })
+      // Enforce item status rules: archived items should behave as not found,
+      // inactive items cannot be reserved (still visible in listings but not reservable).
+      if (String(item.status || 'active') === 'archived') return res.status(404).json({ error: 'Item not found' })
+      if (String(item.status || 'active') === 'inactive') return res.status(400).json({ error: 'Item is not available for reservation' })
       // Queue semantics: allow reservation even if currently fully reserved (no hard fail)
       const { data: existing } = await admin.from('reservations').select('*').eq('user_id', user.id).eq('item_id', item_id).maybeSingle()
       const newQty = Math.max(0, (existing?.quantity || 0) + delta)

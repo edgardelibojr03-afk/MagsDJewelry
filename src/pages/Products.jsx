@@ -24,7 +24,8 @@ export default function Products() {
       // Public read via Supabase client (RLS allows select for anon)
       let q = supabase
         .from('items')
-        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url, category_type, gold_type, karat, discount_type, discount_value')
+        .select('id, name, sell_price, total_quantity, reserved_quantity, image_url, category_type, gold_type, karat, discount_type, discount_value, status')
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
       if (filters.q) q = q.ilike('name', `%${filters.q}%`)
       if (filters.category_type) q = q.eq('category_type', filters.category_type)
@@ -166,6 +167,7 @@ export default function Products() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((it) => {
             const available = (it.total_quantity || 0) - (it.reserved_quantity || 0)
+            const inactive = String(it.status || 'active') === 'inactive'
             const queued = available <= 0
             return (
               <div key={it.id} className="bg-white rounded shadow overflow-hidden">
@@ -216,15 +218,16 @@ export default function Products() {
                       )
                     }
                   </div>
-                  <div className="mt-3">
-                    <button
-                      className="px-4 py-2 bg-black text-white rounded w-full"
-                      onClick={() => { setSelectedItem(it); setShowReserveModal(true) }}
-                    >
-                      {queued ? 'Queue Reserve' : 'Reserve'}
-                    </button>
-                  </div>
-                  {queued && <div className="mt-2 text-amber-600 text-sm">Currently fully reserved — you will be in queue.</div>}
+                    <div className="mt-3">
+                      <button
+                        className={`px-4 py-2 rounded w-full ${inactive ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-black text-white'}`}
+                        onClick={() => { if (!inactive) { setSelectedItem(it); setShowReserveModal(true) } }}
+                        disabled={inactive}
+                      >
+                        {inactive ? 'Unavailable' : (queued ? 'Queue Reserve' : 'Reserve')}
+                      </button>
+                    </div>
+                    {queued && <div className="mt-2 text-amber-600 text-sm">Currently fully reserved — you will be in queue.</div>}
                 </div>
               </div>
             )
